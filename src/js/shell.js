@@ -166,7 +166,7 @@
       if (below + 26 <= vh - legendH) { subEl.dataset.place = 'below'; setBox(subEl, 16, below, vw - 32, 26); }
       else { subEl.dataset.place = 'legend'; setBox(subEl, 0, vh - legendH, vw, legendH); }
     } else {
-      // landscape: in the left rail, under the Ⅱ / 設定 buttons (wraps to several lines if needed)
+      // landscape: in the left rail, under the ポーズ / 設定 buttons (wraps to several lines if needed)
       subEl.dataset.place = 'rail';
       setBox(subEl, 8 + ins.l, ins.t + 60, Math.max(96, x - 16 - ins.l), null);
       setBox(railL, 0, 0, x, vh); setBox(railR, x + f.cssW, 0, vw - x - f.cssW, vh);
@@ -277,10 +277,10 @@
   function railTop(side) {
     const g = el('div', 'rail-top');
     if (side === 'l') {
-      if (curId === 'play') g.append(button('Ⅱ', 'rt', pressBtn('pause'), { ariaLabel: 'ポーズ' }));
+      if (curId === 'play') g.append(button('ポーズ', 'rt', pressBtn('pause'), { ariaLabel: 'ポーズ' }));
       g.append(button('設定', 'rt', toggleSettings));
     } else {
-      g.append(button('本', 'rt', openManualHere, { ariaLabel: 'せつめいしょ' }));
+      g.append(button('説明', 'rt', openManualHere, { ariaLabel: 'せつめいしょ' }));
       if (MOCK_ON) g.append(button('MOCK', 'rt rt-mock', toggleMock));
     }
     return g;
@@ -591,7 +591,7 @@
     const d = $('#tb-display');
     if (d) { d.textContent = window.innerWidth < 760 ? '表示' : '表示：' + DISPLAY_LABEL[prefs.display]; d.title = '表示：' + DISPLAY_LABEL[prefs.display]; }
     const s = $('#tb-sound'); if (s) { s.textContent = '音 ' + SOUND_LABEL(GS.state.sound); s.setAttribute('aria-pressed', String(GS.state.sound > 0)); }
-    // [Ⅱ] in the top bar: portrait, and touch PCs (tablets held sideways with 560px or more: no keyboard Esc there,
+    // [ポーズ] in the top bar: portrait, and touch PCs (tablets held sideways with 560px or more: no keyboard Esc there,
     // and the side rails may have no room left); landscape has its own in the left rail
     const p = $('.tb-pause'); if (p) p.hidden = !(curId === 'play' && (GS.state.layout === 'portrait' || body.classList.contains('touch-pc')));
   }

@@ -41,7 +41,7 @@ PCとスマホ・タブレットのブラウザに対応しています。音は
 | ねらう | マウス | 移動の向き（自動で照準補正） |
 | うつ | 左クリック（ロングバレルは長押し） | 画面の右側を押す |
 | 武器を切り替え | E／右クリック | ［ぶき］ボタン |
-| ポーズ | Esc／P | ［Ⅱ］ボタン |
+| ポーズ | Esc／P | ［ポーズ］ボタン |
 | すぐやりなおし | R | ポーズメニュー |
 
 ## 開発
@@ -103,7 +103,7 @@ It works in browsers on PCs, phones and tablets. Sound starts off; choose "あ�
 | Aim | Mouse | Your movement direction (with aim assist) |
 | Shoot | Left click (hold for the long barrel) | Press the right side of the screen |
 | Switch weapon | E / right click | The [ぶき] (weapon) button |
-| Pause | Esc / P | The [Ⅱ] button |
+| Pause | Esc / P | The [ポーズ] (pause) button |
 | Restart at once | R | Pause menu |
 
 ### Development

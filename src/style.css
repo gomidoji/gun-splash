@@ -131,7 +131,7 @@ kbd {
   display: flex; align-items: center; justify-content: center; padding: 0 12px;
   background: rgba(16, 24, 32, .98); border-top: 1px solid var(--line); text-shadow: none;
 }
-/* landscape: in the left rail under the Ⅱ / 設定 buttons, may wrap */
+/* landscape: in the left rail under the ポーズ / 設定 buttons, may wrap */
 #subtitle[data-place="rail"] {
   text-align: left; font-size: 13px; line-height: 18px; padding: 6px 8px; border-radius: 8px;
   background: rgba(16, 24, 32, .86); border: 1px solid var(--line); text-shadow: none; overflow-wrap: anywhere;
