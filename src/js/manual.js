@@ -124,10 +124,14 @@
   function rubyNodes(s) {
     const out = []; let plain = '', i = 0, changed = false;
     const flush = () => { if (plain) { out.push(document.createTextNode(plain)); plain = ''; } };
+    // spans, not <ruby>/<rt>: the reading is placed by manual.css (absolutely, in the half-leading), and Safari does
+    // not let a <rt> be positioned (it drops it below its base instead). The reading is hidden from screen readers,
+    // which read the base text.
     const ruby = (base, rt) => {
       flush(); changed = true;
-      const r = document.createElement('ruby'); r.append(base);
-      const t = document.createElement('rt'); t.textContent = rt; r.append(t); out.push(r);
+      const r = document.createElement('span'); r.className = 'ruby'; r.append(base);
+      const t = document.createElement('span'); t.className = 'rt'; t.setAttribute('aria-hidden', 'true'); t.textContent = rt;
+      r.append(t); out.push(r);
     };
     while (i < s.length) {
       const ch = s[i];
@@ -151,7 +155,7 @@
     flush();
     return changed ? out : null;
   }
-  const NO_RUBY = 'ruby, rt, rp, script, style, textarea, input, canvas, svg, .rom, .noruby';
+  const NO_RUBY = '.ruby, ruby, rt, rp, script, style, textarea, input, canvas, svg, .rom, .noruby';
   function applyRuby(root) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
       acceptNode: n => (/[一-鿿々｜]/.test(n.nodeValue) && !(n.parentElement && n.parentElement.closest(NO_RUBY)) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT),

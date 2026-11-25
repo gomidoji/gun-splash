@@ -104,12 +104,12 @@ body.mv-panning #mv-stage { cursor: grabbing; }
 
 /* ruby: 総ルビ (rt 6.5px for 13px text). The annotation sits in the half-leading like a printed 総ルビ setting,
    so it does not push lines apart: line-height >= 1.5em keeps it clear of the line above. */
-.page ruby { display: inline-block; position: relative; line-height: 1; text-indent: 0; }
-.page rt {
+.page .ruby { display: inline-block; position: relative; line-height: 1; text-indent: 0; }
+.page .rt {
   position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); display: block; white-space: nowrap;
   font-size: .5em; line-height: 1; font-weight: 400; font-family: "BIZ UDPGothic", sans-serif; letter-spacing: 0; text-align: center;
 }
-.no-ruby rt { display: none; }
+.no-ruby .rt { display: none; }
 
 /* type sizes for dense tables and notes */
 .fs10 { font-size: 10px; line-height: 15.5px; }
@@ -120,7 +120,7 @@ body.mv-panning #mv-stage { cursor: grabbing; }
 /* heading band (chapter spread, bleeds over the gutter) */
 .band { position: absolute; left: 0; top: 0; width: 340px; height: 56px; background: var(--spot); color: var(--paper); }
 .band h2 { position: absolute; top: 13px; font: 22px/30px "Dela Gothic One", "BIZ UDPGothic", sans-serif; letter-spacing: .02em; white-space: nowrap; }
-.band h2 rt { font-family: "BIZ UDPGothic", sans-serif; font-weight: 700; color: var(--paper); }
+.band h2 .rt { font-family: "BIZ UDPGothic", sans-serif; font-weight: 700; color: var(--paper); }
 .band h2 small { font-size: 12px; margin-left: 6px; font-family: "Dela Gothic One", sans-serif; opacity: .95; }
 .L .band h2 { left: 74px; }
 .R .band h2 { right: 74px; }
@@ -148,7 +148,7 @@ body.mv-panning #mv-stage { cursor: grabbing; }
   word-break: auto-phrase; text-wrap: balance;
 }
 .page .catch.sm { font-size: 11px; line-height: 16px; }
-.catch rt { font-family: "M PLUS Rounded 1c", sans-serif; font-weight: 800; }
+.catch .rt { font-family: "M PLUS Rounded 1c", sans-serif; font-weight: 800; }
 .L .catch { left: 20px; }
 .R .catch { left: 180px; }
 
@@ -166,7 +166,7 @@ body.mv-panning #mv-stage { cursor: grabbing; }
 .h-toc .en { font: 700 11px/1 "BIZ UDPGothic", sans-serif; letter-spacing: .25em; color: var(--spot); margin-left: 8px; }
 .sub-h { font: 13px/18px "Dela Gothic One", sans-serif; margin-bottom: 3px; color: var(--ink); }
 .sub-h.big { font-size: 15px; line-height: 20px; }
-.sub-h rt { font-family: "BIZ UDPGothic", sans-serif; font-weight: 700; }
+.sub-h .rt { font-family: "BIZ UDPGothic", sans-serif; font-weight: 700; }
 .fs9 .sub-h { font-size: 11px; line-height: 16px; }
 
 /* boxes */
@@ -177,7 +177,7 @@ body.mv-panning #mv-stage { cursor: grabbing; }
 .box.warn { background: var(--c-warnbg); }
 .box.imp { border: 1.5px solid var(--c-red); background: var(--paper); }
 .box-h { font: 12px/17px "Dela Gothic One", sans-serif; margin-bottom: 2px; }
-.box-h rt { font-family: "BIZ UDPGothic", sans-serif; font-weight: 700; }
+.box-h .rt { font-family: "BIZ UDPGothic", sans-serif; font-weight: 700; }
 .imp-h, .warn-h { display: block; font-weight: 700; color: var(--c-red); }
 .warn-h { color: var(--ink); }
 
@@ -241,7 +241,7 @@ body:not(.mode-text) .page input { user-select: text; -webkit-user-select: text;
   font: 800 11px/17px "M PLUS Rounded 1c", "BIZ UDPGothic", sans-serif; margin-bottom: 18px;
   word-break: auto-phrase; text-wrap: balance;
 }
-.bubble rt { font-family: "M PLUS Rounded 1c", sans-serif; font-weight: 800; }
+.bubble .rt { font-family: "M PLUS Rounded 1c", sans-serif; font-weight: 800; }
 .bubble::after { content: ""; position: absolute; width: 9px; height: 9px; background: inherit; border: inherit; border-width: 0 1.5px 1.5px 0; bottom: 6px; transform: rotate(-45deg); }
 .bubble.b-left::after { right: -6px; }
 .bubble.b-right::after { left: -6px; transform: rotate(135deg); }
@@ -269,7 +269,7 @@ body.mode-text .dodge { display: none; }
 .cv-logo-wrap .fallback { font: 34px/1.1 "Dela Gothic One", sans-serif; color: #F8E8A0; text-shadow: 2px 2px 0 #101828; text-align: center; }
 .cv-en { left: 0; top: 168px; width: 340px; text-align: center; color: #F8F8F0; font: 700 13px/16px "BIZ UDPGothic", sans-serif; letter-spacing: .5em; text-shadow: 1px 1px 0 #101828; z-index: 2; }
 .cv-sub { left: 0; top: 188px; width: 340px; text-align: center; color: #F8E8A0; font: 800 14px/22px "M PLUS Rounded 1c", sans-serif; text-shadow: 1px 1px 0 #101828; z-index: 2; }
-.cv-sub rt { color: #F8F8F0; }
+.cv-sub .rt { color: #F8F8F0; }
 .cv-foot { left: 0; top: 448px; width: 340px; height: 48px; background: var(--ink); color: var(--paper); display: grid; place-items: center; font-size: 9px; letter-spacing: .08em; z-index: 2; }
 
 /* ---------------------------------------------------------------- 表2 / p1 */
@@ -286,7 +286,7 @@ body.mode-text .dodge { display: none; }
 .team-lbl { font: 12px/16px "Dela Gothic One", sans-serif; padding: 1px 10px; border-radius: 9px; color: var(--paper); }
 .team-lbl.blue { background: var(--c-blue); }
 .team-lbl.orange { background: var(--c-orange); }
-.team-lbl rt { color: var(--ink); }
+.team-lbl .rt { color: var(--ink); }
 .team-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; border-radius: 8px; padding: 12px 4px 4px; }
 .team-row .team-lbl { position: absolute; left: 6px; top: -8px; }
 .team-row.blue { background: rgba(88,136,216,.16); }
@@ -314,10 +314,10 @@ body.mode-text .dodge { display: none; }
 .kb .mouse .mb-w { position: absolute; left: 50%; top: 6px; width: 6px; height: 12px; margin-left: -3px; border-radius: 3px; background: var(--ink); }
 .tbl { border-collapse: collapse; }
 .tbl caption { text-align: left; font: 11px/16px "Dela Gothic One", sans-serif; margin-bottom: 2px; }
-.tbl caption rt { font-family: "BIZ UDPGothic", sans-serif; }
+.tbl caption .rt { font-family: "BIZ UDPGothic", sans-serif; }
 .tbl th, .tbl td { border: 1px solid var(--ink); padding: 0 3px; vertical-align: middle; text-align: left; font-weight: 400; }
 .tbl thead th { background: var(--ink); color: var(--paper); font-weight: 700; text-align: center; }
-.tbl thead th rt { color: var(--paper); }
+.tbl thead th .rt { color: var(--paper); }
 .tbl tbody th { font-weight: 700; background: var(--spot30); }
 .ctrl tbody th { width: 104px; }
 
@@ -427,7 +427,7 @@ body.mode-text .dodge { display: none; }
 .card .wicon { width: 48px; height: 48px; flex: none; background: #182848; border-radius: 4px; }
 .c2 .card .wicon { background: var(--ink); }
 .card h3 { font: 11px/16px "Dela Gothic One", sans-serif; white-space: nowrap; }
-.card h3 rt { font-family: "BIZ UDPGothic", sans-serif; font-weight: 700; }
+.card h3 .rt { font-family: "BIZ UDPGothic", sans-serif; font-weight: 700; }
 .card .range { flex: none; height: 7px; border: 1px solid var(--ink); border-radius: 4px; background: var(--paper); overflow: hidden; }
 .card .range i { display: block; height: 100%; background: var(--spot); }
 .card .stats { font-size: 8.5px; line-height: 12.75px; }
@@ -497,7 +497,7 @@ body.mode-text .dodge { display: none; }
 .back-code { left: 0; top: 270px; width: 340px; text-align: center; font: 11px/1 ui-monospace, Consolas, monospace; letter-spacing: .2em; }
 .back-c { left: 0; top: 400px; width: 340px; text-align: center; font-size: 9px; line-height: 14px; }
 .back-legal { left: 30px; top: 418px; width: 280px; text-align: center; font-size: 9px; line-height: 15px; }
-.cover4 rt { color: var(--paper); }
+.cover4 .rt { color: var(--paper); }
 
 /* ================================================================ scan-like look */
 .scan .page::after {
@@ -560,8 +560,8 @@ body.mode-text .page {
   padding: 16px 18px 20px; font-size: 16px !important; line-height: 2 !important; background: #F0E8D0; color: #203848;
 }
 body.mode-text .page * { font-size: inherit !important; line-height: inherit !important; }
-body.mode-text .page rt { font-size: .5em !important; line-height: 1 !important; }
-body.mode-text .page ruby { line-height: 1 !important; }
+body.mode-text .page .rt { font-size: .5em !important; line-height: 1 !important; }
+body.mode-text .page .ruby { line-height: 1 !important; }
 body.mode-text .page h2 { font-size: 22px !important; line-height: 1.8 !important; }
 body.mode-text .page :is(h3, .sub-h, .box-h, caption) { font-size: 18px !important; }
 body.mode-text .card .stats dt { width: auto; margin-right: 8px; }
@@ -580,7 +580,7 @@ body.mode-text .page .a, body.mode-text .page .band, body.mode-text .page .band 
 }
 body.mode-text .page .band { background: none; color: inherit; margin-bottom: 8px; }
 body.mode-text .page .band h2 { color: #203848; white-space: normal; }
-body.mode-text .page .band h2 rt { color: #203848; }
+body.mode-text .page .band h2 .rt { color: #203848; }
 body.mode-text .page .badge { display: inline-block; clip-path: none; background: none; }
 body.mode-text .page .badge::before { display: none; }
 body.mode-text .page .badge b::before { content: "第"; } body.mode-text .page .badge b::after { content: "章"; }
@@ -607,7 +607,7 @@ body.mode-text .cover1 .cv-top, body.mode-text .cv-foot { background: none; colo
 body.mode-text .cv-en, body.mode-text .cv-sub, body.mode-text .back-c, body.mode-text .back-legal { color: #203848; text-shadow: none; text-align: left; }
 body.mode-text .cv-logo-wrap { display: block; }
 body.mode-text .cv-logo, body.mode-text .back-logo { width: 300px !important; height: auto !important; background: #101828; border-radius: 6px; }
-body.mode-text .cover4 rt, body.mode-text .cv-sub rt { color: #203848; }
+body.mode-text .cover4 .rt, body.mode-text .cv-sub .rt { color: #203848; }
 body.mode-text .ao { display: flex; }
 body.mode-text .ao-face { width: 48px !important; height: 48px !important; }
 body.mode-text .bubble { margin: 0; }
