@@ -569,7 +569,7 @@
     return w;
   };
 
-  // ---- J16: DotGothic16 binarised atlas ----
+  // ---- J16: DotGothic16 as 1-bit glyphs (js/j16-atlas.js, else binarised from the font at run time) ----
   const J16 = { family: '"DotGothic16"', masks: new Map(), ready: false, dy: 0 };
   const jScratch = mk(32, 32), jctx = ctx2d(jScratch, true);
   // the characters the web font is asked for up front (loadDot): kana, the kanji whitelist, punctuation, ASCII
@@ -614,8 +614,33 @@
     }
     J16.py = best.py;
   }
+  // The prebuilt glyphs (js/j16-atlas.js, made by fonts.mjs from DotGothic16's outlines): the same dots on every
+  // browser, with no canvas read back (Safari 26 adds anti-fingerprinting noise to canvas readback, which broke the
+  // rendering below). Characters it does not have fall back to that rendering.
+  let atlas = null;   // char -> { w, bits, method }, decoded on first use
+  function atlasMask(ch) {
+    if (!atlas) {
+      atlas = new Map();
+      const A = GS.J16_ATLAS;
+      if (A && typeof A.chars === 'string' && typeof A.data === 'string') {
+        const raw = atob(A.data);
+        let p = 0;
+        for (const c of A.chars) {
+          const w = jAdv(c), bits = new Uint8Array(w * 16);
+          for (let i = 0; i < w * 16; i += 8) {
+            const byte = raw.charCodeAt(p++);
+            for (let k = 0; k < 8; k++) bits[i + k] = (byte >> (7 - k)) & 1;
+          }
+          atlas.set(c, { w, bits, method: 'atlas' });
+        }
+        if (p !== raw.length) { console.error('[GS] js/j16-atlas.js: the data does not match its characters'); atlas.clear(); }
+      }
+    }
+    return atlas.get(ch);
+  }
   function jMask(ch) {
-    let m = J16.masks.get(ch); if (m) return m;
+    let m = J16.masks.get(ch) || atlasMask(ch);
+    if (m) { J16.masks.set(ch, m); return m; }
     const cw = jAdv(ch);
     jctx.font = '16px ' + J16.family; jctx.textBaseline = 'top'; jctx.fillStyle = '#ffffff';
     let best = null;

@@ -51,10 +51,10 @@ PCとスマホ・タブレットのブラウザに対応しています。音は
 ```sh
 npm test         # テスト（tests/）
 npm run build    # src/ から 1ファイル版の play.html を作る
-npm run fonts    # src/fonts/ のフォントを作り直す（要インターネット）
+npm run fonts    # フォント（src/fonts/）とゲーム画面の文字データを作り直す（要インターネット）
 ```
 
-フォントは、ゲームと説明書で使う文字だけを収めたサブセットです。新しい文字を使う文を足したら `npm run fonts` を実行します（必要なときはテスト時に通知されます）。
+フォントは、ゲームと説明書で使う文字だけを収めたサブセットです。ゲーム画面の文字は、そのフォントの輪郭から作った点のデータ（`src/js/j16-atlas.js`）で描くので、どの端末でも同じ見た目になります。新しい文字を使う文を足したら `npm run fonts` を実行します（必要なときはテスト時に通知されます）。
 
 ## ライセンス
 
@@ -113,10 +113,10 @@ There are no dependencies. `src/` is the game itself and can be served as static
 ```sh
 npm test         # run the tests (tests/)
 npm run build    # build the single-file play.html from src/
-npm run fonts    # rebuild the fonts in src/fonts/ (needs the internet)
+npm run fonts    # rebuild the fonts (src/fonts/) and the in-game text glyphs (needs the internet)
 ```
 
-The fonts are subsets that hold only the characters the game and the manual use. After adding text with new characters, run `npm run fonts` (the tests tell you when).
+The fonts are subsets that hold only the characters the game and the manual use. The in-game text is drawn from dot glyphs made from that font's outlines (`src/js/j16-atlas.js`), so it looks the same on every device. After adding text with new characters, run `npm run fonts` (the tests tell you when).
 
 ### License
 

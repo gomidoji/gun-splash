@@ -3,7 +3,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
-import { FACES, mustHave, usedChars, woff2Chars } from '../fonts.mjs';
+import vm from 'node:vm';
+import { ATLAS_FILE, FACES, mustHave, romChars, romWidth, usedChars, woff2Chars } from '../fonts.mjs';
 
 const FONTS = new URL('../src/fonts/', import.meta.url);
 const text = name => readFile(new URL(name, FONTS), 'utf8');
@@ -41,6 +42,34 @@ test('every bundled font comes with its OFL license text', async () => {
     const license = await text(face.license);
     assert.match(license, /^Copyright /, face.license);
     assert.match(license, /SIL OPEN FONT LICENSE Version 1\.1/, face.license);
+  }
+});
+
+test('the ROM glyph atlas has every ROM character DotGothic16 has, as well-formed 16-dot glyphs', async () => {
+  const sandbox = { window: {} };
+  vm.runInNewContext(await readFile(new URL('../src/' + ATLAS_FILE, import.meta.url), 'utf8'), sandbox);
+  const { chars, data } = sandbox.window.GS.J16_ATLAS;
+  const bytes = Buffer.from(data, 'base64'), list = [...chars];
+  assert.equal(bytes.length, list.reduce((n, ch) => n + romWidth(ch) * 2, 0), 'data length matches the characters');
+  // the ROM characters of chars.txt that the bundled DotGothic16 files hold
+  const css = await text('fonts.css'), dot = new Set();
+  for (const [, file] of css.matchAll(/font-family: "DotGothic16";[^}]*src: url\(([\w.-]+\.woff2)\)/g)) {
+    for (const c of woff2Chars(await readFile(new URL(file, FONTS)))) dot.add(c);
+  }
+  const want = [...await romChars((await text('chars.txt')).replace(/\n$/, ''))].filter(ch => dot.has(ch.codePointAt(0)));
+  assert.deepEqual(list, want, 'the atlas characters are the ROM characters: run `npm run fonts`');
+  let p = 0;
+  for (const ch of list) {
+    const n = romWidth(ch) * 2, glyph = bytes.subarray(p, p + n); p += n;
+    assert.ok(glyph.some(b => b !== 0), `${ch} has dots`);
+    assert.ok(glyph.some(b => b !== 0xFF), `${ch} is not solid`);
+  }
+});
+
+test('both pages load the ROM glyph atlas right after js/core.js', async () => {
+  for (const page of ['index.html', 'manual.html']) {
+    const html = await readFile(new URL('../src/' + page, import.meta.url), 'utf8');
+    assert.match(html, /<script src="(?:\.\/)?js\/core\.js"><\/script>\r?\n<script src="(?:\.\/)?js\/j16-atlas\.js"><\/script>/, page);
   }
 });
 
