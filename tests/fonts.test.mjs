@@ -66,10 +66,10 @@ test('the ROM glyph atlas has every ROM character DotGothic16 has, as well-forme
   }
 });
 
-test('both pages load the ROM glyph atlas right after js/core.js', async () => {
+test('both pages load the ROM glyph atlas right before js/core.js (which looks for it as it starts)', async () => {
   for (const page of ['index.html', 'manual.html']) {
     const html = await readFile(new URL('../src/' + page, import.meta.url), 'utf8');
-    assert.match(html, /<script src="(?:\.\/)?js\/core\.js"><\/script>\r?\n<script src="(?:\.\/)?js\/j16-atlas\.js"><\/script>/, page);
+    assert.match(html, /<script src="(?:\.\/)?js\/j16-atlas\.js"><\/script>\r?\n<script src="(?:\.\/)?js\/core\.js"><\/script>/, page);
   }
 });
 

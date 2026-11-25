@@ -696,9 +696,19 @@
     const faces = await document.fonts.load('16px "DotGothic16"', REP);
     return !!(faces && faces.length) && document.fonts.check('16px "DotGothic16"', 'あ');
   }
+  // With the prebuilt glyphs (js/j16-atlas.js, loaded before this file) the ROM text does not need the web font, so
+  // nothing waits for it and no fallback is announced: the font keeps loading in the background, and the few glyphs
+  // that come from it (characters the atlas lacks) are drawn again once it is there. Without the atlas: wait up to
+  // 3 s, else a system font, upgraded when the web font arrives late.
+  const hasAtlas = !!(GS.J16_ATLAS && GS.J16_ATLAS.chars);
   const fontReady = (async function () {
     let ok = false;
     const p = loadDot().catch(() => false);
+    if (hasAtlas) {
+      p.then(loaded => { if (loaded === true) { clearJ16(); GS.dirty = true; } });
+      J16.ready = true; GS.dirty = true;
+      return 'DotGothic16';
+    }
     try { ok = await Promise.race([p, sleep(3000).then(() => 'timeout')]); } catch (e) { ok = false; }
     if (ok !== true) {
       J16.family = '"MS Gothic","Osaka-Mono",monospace'; GS.state.fontFallback = true;
