@@ -16,7 +16,8 @@
  *  - manual.html + manual.css (+ any script the manual needs that the game page does not load, e.g. js/manual.js)
  *    -> JSON in <script type="application/json" id="gs-embed">. js/shell.js builds the manual iframe from it
  *    (a blob: document with the scripts above inlined), so the manual opens offline inside the single file.
- * Nothing comes from the network.
+ * Nothing comes from the network. To keep the file small, comments and indentation are stripped (strip.mjs) from
+ * every inlined script and stylesheet and from the markup's <!-- --> comments; each stripped script must compile.
  *
  * Supported module syntax (fails loudly otherwise): one `import … from './x.mjs'` per line (`* as ns` or
  * `{ a, b as c }`), `export const|let|var|function|async function|class name` at the start of a line (one name per
@@ -24,6 +25,8 @@
  * "<\/script". style.css, manual.css and fonts/fonts.css may not contain "</style".
  */
 import { readdir, readFile, writeFile } from 'node:fs/promises';
+import vm from 'node:vm';
+import { stripCss, stripHtml, stripJs } from './strip.mjs';
 
 const SRC = new URL('./src/', import.meta.url);
 // text files without a UTF-8 BOM (a file saved with one would put a stray U+FEFF into the inlined script)
@@ -40,6 +43,12 @@ const DECL_RE = new RegExp(String.raw`^export\s+((?:async\s+)?function\*?|class|
 function scriptText(code, name) {
   if (code.includes('<!--')) fail(name + ' contains "<!--"');
   return code.replace(/<\/(script)/gi, '<\\/$1');
+}
+// a script as inlined: stripped (strip.mjs), checked to still compile, then made safe for <script>
+function jsText(code, name) {
+  const stripped = stripJs(code);
+  try { new vm.Script(stripped, { filename: name }); } catch (e) { fail(`${name} does not compile after stripping: ${e.message}`); }
+  return scriptText(stripped, name);
 }
 // text inside <style> must not end the element early (style.css here; manual.css in the manual document that
 // js/shell.js assembles from the embedded copy)
@@ -135,7 +144,7 @@ function convertModule(name, code) {
   const ns = names.length ? ', ' + names.join(', ') : '';
   const text = `(window.GS_MODULES = window.GS_MODULES || {})[${JSON.stringify(name)}] = (() => {\n${body}` +
     `return Object.freeze({ __proto__: null${ns} });\n})();\n`;
-  return { deps, text: scriptText(text, name) };
+  return { deps, text: jsText(text, name) };
 }
 const modules = new Map(); // name -> { deps, text }, insertion order = dependencies first
 async function loadModule(name, stack = []) {
@@ -147,7 +156,7 @@ async function loadModule(name, stack = []) {
 }
 
 // ---- index.html -> play.html ------------------------------------------------------------------------
-let html = await read('index.html');
+let html = stripHtml(await read('index.html'));
 const inlined = new Set();
 function replaceOnce(re, fn, what) {
   let n = 0;
@@ -157,7 +166,7 @@ function replaceOnce(re, fn, what) {
 
 // the bundled fonts (fonts/fonts.css, made by fonts.mjs), their files as data: URLs
 const FONTS_CSS = 'fonts/fonts.css', WOFF2_RE = /url\(([\w.-]+\.woff2)\)/g;
-let fontsCss = await read(FONTS_CSS);
+let fontsCss = stripCss(await read(FONTS_CSS));
 const fontData = new Map();
 for (const [, f] of fontsCss.matchAll(WOFF2_RE)) {
   if (!fontData.has(f)) fontData.set(f, (await readFile(new URL('fonts/' + f, SRC))).toString('base64'));
@@ -178,7 +187,7 @@ fontsCss = styleText(fontsCss, FONTS_CSS);
 replaceOnce(/<link rel="stylesheet" href="\.\/fonts\/fonts\.css">/g,
   () => `<style data-gs-src="${FONTS_CSS}">\n${fontsCss}</style>`, 'fonts/fonts.css link');
 
-const css = styleText(await read('style.css'), 'style.css');
+const css = styleText(stripCss(await read('style.css')), 'style.css');
 replaceOnce(/<link rel="stylesheet" href="\.\/style\.css">/g, () => `<style>\n${css}</style>`, 'style.css link');
 
 const icon = await readFile(new URL('icon.svg', SRC));
@@ -192,7 +201,7 @@ const tagRe = new RegExp(`<script src="\\./(js/${NAME}\\.js)"></script>|<script 
 const classic = {};
 let entries = 0;
 for (const [, js, mjs] of html.matchAll(tagRe)) {
-  if (js) classic[js] = scriptText(await read(js), js);
+  if (js) classic[js] = jsText(await read(js), js);
   else { entries++; await loadModule(mjs); }
 }
 if (!Object.keys(classic).length || !entries) fail('index.html: classic scripts or the module script not found');
@@ -208,13 +217,13 @@ html = html.replace(tagRe, (m, js) => {
 });
 
 // ---- the manual, embedded for js/shell.js (blob: iframe) -------------------------------------------
-const manualHtml = await read('manual.html');
+const manualHtml = stripHtml(await read('manual.html'));
 for (const sheet of ['manual.css', FONTS_CSS]) {   // js/shell.js swaps these two for <style> in the manual
   if (!manualHtml.includes(`<link rel="stylesheet" href="${sheet}">`)) fail(`manual.html: no <link rel="stylesheet" href="${sheet}">`);
 }
-const embed = { 'manual.html': manualHtml, 'manual.css': styleText(await read('manual.css'), 'manual.css') };
+const embed = { 'manual.html': manualHtml, 'manual.css': styleText(stripCss(await read('manual.css')), 'manual.css') };
 for (const [, name] of manualHtml.matchAll(new RegExp(`<script src="(?:\\./)?(js/${NAME}\\.js)"></script>`, 'g'))) {
-  if (!inlined.has(name) && !(name in embed)) embed[name] = scriptText(await read(name), name);
+  if (!inlined.has(name) && !(name in embed)) embed[name] = jsText(await read(name), name);
 }
 for (const [, , name] of manualHtml.matchAll(new RegExp(`import\\((['"])\\./(${NAME}\\.mjs)\\1\\)`, 'g'))) {
   if (!inlined.has(name)) fail(`manual.html imports ${name}, which the game page does not load`);

@@ -1,9 +1,9 @@
-// The bundled fonts (src/fonts/, made by fonts.mjs): they cover every character in src/, each face's files are real
-// subsets, every font has its license text, and the pages load nothing from the network.
+// The bundled fonts (src/fonts/, made by fonts.mjs): they cover every character src/ shows, each face's files are
+// real subsets, every font has its license text, and the pages load nothing from the network.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
-import { FACES, MUST_HAVE, usedChars, woff2Chars } from '../fonts.mjs';
+import { FACES, mustHave, usedChars, woff2Chars } from '../fonts.mjs';
 
 const FONTS = new URL('../src/fonts/', import.meta.url);
 const text = name => readFile(new URL(name, FONTS), 'utf8');
@@ -20,7 +20,7 @@ test('fonts.css serves every face from WOFF2 subsets that hold its characters', 
     family: /font-family:\s*"([^"]+)"/.exec(r)[1], weight: +/font-weight:\s*(\d+)/.exec(r)[1],
     file: /src:\s*url\(([\w.-]+\.woff2)\)/.exec(r)[1], range: /unicode-range:\s*([^;]+);/.exec(r)[1],
   }));
-  const used = new Set();
+  const used = new Set(), asked = mustHave((await text('chars.txt')).replace(/\n$/, ''));
   for (const face of FACES) {
     const mine = rules.filter(r => r.family === face.family && r.weight === face.weight);
     assert.ok(mine.length, `${face.family} ${face.weight} in fonts.css`);
@@ -29,7 +29,7 @@ test('fonts.css serves every face from WOFF2 subsets that hold its characters', 
       used.add(r.file);
       for (const c of woff2Chars(await readFile(new URL(r.file, FONTS)))) has.add(c);
     }
-    for (const [a, b] of MUST_HAVE) for (let c = a; c <= b; c++) assert.ok(has.has(c), `${face.name} has U+${c.toString(16)}`);
+    for (const c of asked) assert.ok(has.has(c), `${face.name} has U+${c.toString(16)}`);   // ASCII and kana asked for
   }
   assert.equal(rules.length, used.size, 'one rule per file');
   const files = (await readdir(FONTS)).filter(f => f.endsWith('.woff2')).sort();

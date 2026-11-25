@@ -1,5 +1,6 @@
 /* Makes the bundled web fonts in src/fonts/: the four OFL fonts the game and the manual use, each cut down to the
- * characters that appear in src/ (the full Japanese fonts are about 17 MB together).
+ * characters src/ can show: those of its text with the comments stripped (strip.mjs), plus printable ASCII. (The full
+ * Japanese fonts are about 17 MB together.)
  *
  *   npm run fonts
  *
@@ -16,6 +17,7 @@
 import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { brotliDecompressSync } from 'node:zlib';
+import { stripCss, stripHtml, stripJs } from './strip.mjs';
 
 const SRC = new URL('./src/', import.meta.url);
 const OUT = new URL('./src/fonts/', import.meta.url);
@@ -29,10 +31,12 @@ export const FACES = [
   { family: 'M PLUS Rounded 1c', weight: 800, name: 'MPLUSRounded1c-ExtraBold', license: 'MPLUSRounded1c-OFL.txt' },
 ];
 
-// always in, used or not: printable ASCII, CJK symbols and punctuation, hiragana, katakana, fullwidth ASCII
-const RANGES = [[0x20, 0x7E], [0x3000, 0x303F], [0x3041, 0x3096], [0x309B, 0x309E], [0x30A0, 0x30FF], [0xFF01, 0xFF5E]];
-// every face must come back with these (all four fonts have them): a subset without them is a broken download
-export const MUST_HAVE = [[0x21, 0x7E], [0x3042, 0x3093], [0x30A2, 0x30F3]];
+// always in, used or not: printable ASCII (cheap, and what people type into the manual's MEMO page)
+const RANGES = [[0x20, 0x7E]];
+// all four fonts have these: a face that comes back without one it was asked for is a broken download
+const MUST_HAVE = [[0x21, 0x7E], [0x3041, 0x3093], [0x30A1, 0x30F6]];
+// the code points of `text` in MUST_HAVE
+export const mustHave = text => [...text].map(c => c.codePointAt(0)).filter(c => MUST_HAVE.some(([a, b]) => c >= a && c <= b));
 
 // the text files of src/ outside src/fonts/, as paths relative to src/ with "/"
 async function textFiles() {
@@ -42,12 +46,15 @@ async function textFiles() {
     .sort();
 }
 
-// RANGES plus every character of those files (no control characters, no BOM), sorted by code point
+// RANGES plus every character of those files once their comments are stripped (no control characters, no BOM),
+// sorted by code point
+const STRIP = { html: stripHtml, css: stripCss, js: stripJs, mjs: stripJs };
 export async function usedChars() {
   const set = new Set();
   for (const [a, b] of RANGES) for (let c = a; c <= b; c++) set.add(c);
   for (const name of await textFiles()) {
-    for (const ch of await readFile(new URL(name, SRC), 'utf8')) {
+    const text = STRIP[name.split('.').pop()](await readFile(new URL(name, SRC), 'utf8'));
+    for (const ch of text) {
       const c = ch.codePointAt(0);
       if (c >= 0x20 && !(c >= 0x7F && c < 0xA0) && c !== 0xFEFF) set.add(c);
     }
@@ -157,8 +164,8 @@ async function main() {
       rules.push(`@font-face { font-family: "${face.family}"; font-style: normal; font-weight: ${face.weight}; font-display: swap;\n` +
         `  src: url(${file}) format("woff2");\n  unicode-range: ${unicodeRange(mine)}; }`);
     }
-    for (const [a, b] of MUST_HAVE) {
-      for (let c = a; c <= b; c++) if (!covered.has(c)) throw new Error(`fonts: ${face.name} came back without U+${c.toString(16)} (an incomplete subset)`);
+    for (const c of mustHave(text)) {
+      if (!covered.has(c)) throw new Error(`fonts: ${face.name} came back without U+${c.toString(16)} (an incomplete subset)`);
     }
     const lacks = [...text].filter(c => !covered.has(c.codePointAt(0)));
     console.log(`${face.name}: ${covered.size} characters` + (lacks.length ? `; not in the font: ${lacks.length}` : ''));
