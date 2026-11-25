@@ -1,0 +1,18 @@
+# Editor settings for this repository (https://editorconfig.org). Line endings in git: see .gitattributes.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+indent_style = space
+indent_size = 2
+trim_trailing_whitespace = true
+
+# two trailing spaces are a line break in Markdown
+[*.md]
+trim_trailing_whitespace = false
+
+# the fonts' license texts stay exactly as their authors wrote them
+[src/fonts/*-OFL.txt]
+trim_trailing_whitespace = false

@@ -1,0 +1,674 @@
+<!doctype html>
+<!-- data-live: core.js waits (boot gate) until the module at the end installs the game.mjs rules, so the screen
+     photos and stage maps are drawn from the real stage data (js/data.js GS.setGameData), never from a copy. -->
+<html lang="ja" data-live>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>ガン・スプラッシュ 取扱説明書</title>
+<!-- 電子説明書。24ページの中綴じ冊子＋電子版の付録と、そのビューア。
+     数値と文は src/game.mjs と本物の操作（js/core.js・shell.js・play.js）に合わせてある。 -->
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="manual.css">
+</head>
+<body class="mv scan">
+
+<header id="mv-top">
+  <button type="button" class="mv-btn mv-back" data-act="close" aria-label="もどる"><span aria-hidden="true">←</span><span class="lbl"> もどる</span></button>
+  <h1 class="mv-title">取扱説明書</h1>
+  <p id="mv-pos" class="mv-pos" aria-live="off">p.1 / 24</p>
+  <div class="mv-tools" id="mv-tools">
+    <div class="mv-seg" role="group" aria-label="ページの見せかた">
+      <button type="button" class="mv-btn" data-view="spread" aria-pressed="false">見開き</button><button type="button" class="mv-btn" data-view="single" aria-pressed="false">1ページ</button>
+    </div>
+    <div class="mv-seg" role="group" aria-label="紙の見た目">
+      <button type="button" class="mv-btn" data-look="scan" aria-pressed="true">スキャン風</button><button type="button" class="mv-btn" data-look="crisp" aria-pressed="false">くっきり</button>
+    </div>
+    <button type="button" class="mv-btn" data-act="ruby" aria-pressed="true">ルビ</button>
+    <button type="button" class="mv-btn" data-act="text" aria-pressed="false">テキストで読む</button>
+  </div>
+  <button type="button" class="mv-btn mv-more" data-act="more" aria-expanded="false" aria-controls="mv-tools" aria-label="表示の切りかえ">表示</button>
+</header>
+
+<main id="mv-stage" aria-label="誌面" tabindex="-1">
+  <div id="mv-fit">
+    <div id="mv-slide">
+      <div id="book">
+
+<!-- ================================================================ 表1 -->
+<section class="page R c4 cover1" id="cover1" data-label="表1" data-title="表紙">
+  <h2 class="sr">ガン・スプラッシュ 取扱説明書（表紙）</h2>
+  <div class="a cv-top">
+    <span class="cv-code en">GS-SPL</span>
+    <span class="cv-label noruby">取扱説明書</span>
+  </div>
+  <div class="a cv-kv deco" aria-hidden="true">
+    <i class="cv-sun"></i>
+    <canvas class="a px cv-town" data-art="cover-town" width="170" height="40"></canvas>
+    <canvas class="a px cv-orange" data-art="cover-orange" width="96" height="32"></canvas>
+    <canvas class="a px cv-reflect" data-art="cover-reflect" width="170" height="40"></canvas>
+    <canvas class="a px cv-blue" data-art="cover-blue" width="86" height="32"></canvas>
+  </div>
+  <div class="a cv-logo-wrap">
+    <canvas class="px cv-logo" data-art="logo" width="200" height="72" role="img" aria-label="ガン・スプラッシュ"></canvas>
+  </div>
+  <p class="a cv-en en">GUN SPLASH</p>
+  <p class="a cv-sub">3対3 水たまりの攻防</p>
+  <p class="a cv-foot en">©199X GUN SPLASH PROJECT</p>
+</section>
+
+<!-- ================================================================ 表2 -->
+<section class="page L c2" id="cover2" data-label="表2" data-title="ごあいさつ">
+  <h2 class="a h-simple" style="left:20px;top:24px">ごあいさつ</h2>
+  <p class="a body13" style="left:20px;top:58px;width:292px">このたびは「ガン・スプラッシュ」をお｜買《か》い｜上《あ》げいただき、誠にありがとうございます。ご使用の前に、この取扱説明書をよくお読みいただき、正しい遊び方でお楽しみください。なお、この取扱説明書は大切に保管してください。</p>
+  <section class="a box tint caution" style="left:20px;top:174px;width:292px">
+    <h3 class="box-h">使用上のご注意</h3>
+    <ol class="olist">
+      <li>長い時間遊ぶときは、1時間ごとに10〜15分の｜休《きゅう》けいをとりましょう。</li>
+      <li>部屋を明るくして、画面からなるべくはなれて遊びましょう。</li>
+      <li>つかれているときや、ねむいときは遊ばないでください。</li>
+      <li>画面の点めつや強い光で気分が悪くなったときは、すぐに遊ぶのをやめて休んでください。設定の「動きをへらす」もご利用ください。</li>
+      <li>音を出して遊ぶときは、音量とまわりの｜人《ひと》に気をつけましょう（音ははじめOFFになっています）。</li>
+      <li>スマートフォンで遊ぶときは、歩きながら、または乗り物を運転しながら遊ばないでください。</li>
+    </ol>
+  </section>
+</section>
+
+<!-- ================================================================ p1 -->
+<section class="page R c2" id="p1" data-label="p.1" data-title="もくじ">
+  <h2 class="a h-toc" style="left:28px;top:28px">もくじ <span class="en">CONTENTS</span></h2>
+  <nav class="a toc" style="left:28px;top:86px;width:292px" aria-label="もくじ">
+    <a href="#p2"><span class="t">ストーリー</span><i class="dots"></i><span class="n">2</span></a>
+    <a href="#p3"><span class="t">なかまとあいて</span><i class="dots"></i><span class="n">3</span></a>
+    <a href="#p4"><span class="t">操作のしかた</span><i class="dots"></i><span class="n">4</span></a>
+    <a href="#p6"><span class="t">ゲームの始めかた</span><i class="dots"></i><span class="n">6</span></a>
+    <a href="#p8"><span class="t">画面の見かた</span><i class="dots"></i><span class="n">8</span></a>
+    <a href="#p10"><span class="t">勝ち負けのルール</span><i class="dots"></i><span class="n">10</span></a>
+    <a href="#p12"><span class="t">水と補給</span><i class="dots"></i><span class="n">12</span></a>
+    <a href="#p14"><span class="t">水鉄砲大図鑑</span><i class="dots"></i><span class="n">14</span></a>
+    <a href="#p16"><span class="t">ステージ紹介</span><i class="dots"></i><span class="n">16</span></a>
+    <a href="#p17"><span class="t">一時停止とリザルト</span><i class="dots"></i><span class="n">17</span></a>
+    <a href="#p18"><span class="t">勝つためのヒント</span><i class="dots"></i><span class="n">18</span></a>
+    <a href="#p19"><span class="t">メッセージ早見表</span><i class="dots"></i><span class="n">19</span></a>
+    <a href="#p20"><span class="t en">MEMO</span><i class="dots"></i><span class="n">20</span></a>
+  </nav>
+  <div class="a ao ao-r" style="left:96px;top:384px;width:224px">
+    <p class="bubble b-left">読みたいページから<br>読んでね！</p>
+    <canvas class="px ao-face" data-spr="bust_ready" data-pal="blue" width="32" height="32" role="img" aria-label="アオ"></canvas>
+  </div>
+  <span class="nombre">1</span>
+</section>
+
+<!-- ================================================================ p2 -->
+<section class="page L c4" id="p2" data-label="p.2" data-title="ストーリー">
+  <header class="band"><span class="badge" role="img" aria-label="1章"><b>1</b></span><h2>ストーリー</h2></header>
+  <p class="a catch">雨あがりの街に、<br>水たまりが残った。</p>
+  <p class="a body13 story" style="left:20px;top:108px;width:292px">長い雨がやんだ朝。街の中庭や水路には、大小の水たまりが残されました。ここは、水鉄砲で陣地を取り合う「水たまり戦線」。ブルーチームとオレンジチーム、3人ずつの隊員が、中央の陣地をめぐって水をかけ合います。でも、水たまりの水にはかぎりがあります。撃てば減り、くめば減る。最後に陣地をにぎるのは、水を上手に使ったチームです。</p>
+  <canvas class="a px p2-scene deco" data-art="p2-scene" width="170" height="100" aria-hidden="true"></canvas>
+  <span class="nombre">2</span>
+</section>
+
+<!-- ================================================================ p3 -->
+<section class="page R c4" id="p3" data-label="p.3" data-title="なかまとあいて">
+  <header class="band nob"><h2>なかまとあいて</h2></header>
+  <p class="a catch">水を制する者が、<br>陣地を制す！</p>
+  <p class="a bubble b-down ao-say" style="left:28px;top:64px;width:148px">ぼくはアオ。わからないことが<br>あったら、ぼくをさがしてね！</p>
+  <div class="a team-row blue" style="left:28px;top:116px;width:292px">
+    <p class="team-lbl blue">ブルーチーム</p>
+    <div class="mate"><canvas class="px bust" data-spr="bust_ready" data-pal="blue" data-self="1" width="32" height="32" aria-hidden="true"></canvas><h3>きみ <span class="en">(YOU)</span></h3><p>ブルーチームの1P。画面では▼マークが目印。</p></div>
+    <div class="mate"><canvas class="px bust" data-spr="bust_win1" data-pal="blue" width="32" height="32" aria-hidden="true"></canvas><h3>アオ</h3><p>チームのしっかり者で、この説明書の案内役。雨あがりのにおいが好き。</p></div>
+    <div class="mate"><canvas class="px bust" data-spr="bust_tired" data-pal="blue" width="32" height="32" aria-hidden="true"></canvas><h3>ミオ</h3><p>マイペース。水たまりを見ると、つい飛びこみたくなる。</p></div>
+  </div>
+  <div class="a team-row orange" style="left:28px;top:274px;width:292px">
+    <p class="team-lbl orange">オレンジチーム</p>
+    <div class="mate"><canvas class="px bust" data-spr="bust_win2" data-pal="orange" data-flip="x" width="32" height="32" aria-hidden="true"></canvas><h3>カイ</h3><p>オレンジチームの元気者。とにかく声が大きい。</p></div>
+    <div class="mate"><canvas class="px bust" data-spr="bust_ready" data-pal="orange" data-flip="x" width="32" height="32" aria-hidden="true"></canvas><h3>レン</h3><p>いつも冷静。かべのかげが落ち着くらしい。</p></div>
+    <div class="mate"><canvas class="px bust" data-spr="bust_win1" data-pal="orange" data-flip="x" width="32" height="32" aria-hidden="true"></canvas><h3>ナギ</h3><p>おっとりして見えて、じつは負けずぎらい。</p></div>
+  </div>
+  <p class="a box tint note fs9" style="left:28px;top:411px;width:292px">コンピューターの隊員は「陣地を守る係」「水をくむ係」「攻める係」を入れかえながら戦います。ステージが難しくなるほど、反応が速く、ねらいが正確になります。</p>
+  <span class="nombre">3</span>
+</section>
+
+<!-- ================================================================ p4 -->
+<section class="page L c4" id="p4" data-label="p.4" data-title="操作のしかた：キーボードとマウス">
+  <header class="band"><span class="badge" role="img" aria-label="2章"><b>2</b></span><h2>操作のしかた <small>キーボードとマウス</small></h2></header>
+  <p class="a catch">キーボードと<br>マウスで出撃！</p>
+  <div class="a kb deco-fig" style="left:20px;top:118px;width:292px;height:88px" aria-hidden="true">
+    <span class="key k-esc" style="left:0;top:0">Esc</span>
+    <span class="key" style="left:22px;top:24px">Q</span><span class="key hl" style="left:44px;top:24px">W</span><span class="key hl-g" style="left:66px;top:24px">E</span><span class="key hl-r" style="left:88px;top:24px">R</span>
+    <span class="key hl" style="left:28px;top:46px">A</span><span class="key hl" style="left:50px;top:46px">S</span><span class="key hl" style="left:72px;top:46px">D</span>
+    <span class="key k-ent" style="left:124px;top:24px">Enter</span>
+    <span class="key hl" style="left:174px;top:46px">↑</span><span class="key hl" style="left:152px;top:68px">←</span><span class="key hl" style="left:174px;top:68px">↓</span><span class="key hl" style="left:196px;top:68px">→</span>
+    <span class="mouse" style="left:246px;top:2px"><i class="mb-l"></i><i class="mb-r"></i><i class="mb-w"></i></span>
+  </div>
+  <span class="a tag" style="left:52px;top:118px" data-to="46,128">一時停止</span>
+  <span class="a tag" style="left:102px;top:118px" data-to="96,142">ぶき</span>
+  <span class="a tag" style="left:138px;top:118px" data-to="118,142">やりなおし</span>
+  <span class="a tag" style="left:20px;top:188px" data-to="58,184">いどう</span>
+  <span class="a tag" style="left:240px;top:188px" data-to="234,196">いどう</span>
+  <span class="a tag" style="left:204px;top:118px" data-to="186,152">決定</span>
+  <span class="a tag" style="left:226px;top:96px" data-to="276,126">撃つ</span>
+  <span class="a tag" style="left:276px;top:96px" data-to="298,126">ぶき</span>
+  <span class="a tag" style="left:212px;top:150px" data-to="266,162">ねらう</span>
+  <table class="a tbl fs9 ctrl" style="left:20px;top:212px;width:292px">
+    <thead><tr><th scope="col">操作</th><th scope="col">内容</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">W A S D／矢印キー</th><td>移動</td></tr>
+      <tr><th scope="row">マウス</th><td>ねらう</td></tr>
+      <tr><th scope="row">左クリック（押しつづける）</th><td>撃つ（連射）。ロングバレルは0.8秒押しつづけると発射</td></tr>
+      <tr><th scope="row">E キー／右クリック</th><td>武器を切りかえる（ノーマル→スプラッシュ→ロングバレル→ノーマル…）</td></tr>
+      <tr><th scope="row">Esc キー</th><td>一時停止</td></tr>
+      <tr><th scope="row">Enter キー</th><td>決定（ステージセレクトでは出撃、リザルトでは早送り・もう一度）</td></tr>
+      <tr><th scope="row">R キー</th><td>新しいラウンド</td></tr>
+    </tbody>
+  </table>
+  <ul class="a notes fs8" style="left:20px;top:388px;width:292px">
+    <li>※R キーを押すと、試合中でも確認なしで最初からやり直しになります。</li>
+    <li>※撃っているとき、マウスカーソルの近くにいる敵へ、照準が少しだけ合います（最大6度）。</li>
+    <li>※メニューは矢印キー（ステージセレクトは ←→）でえらび、Enter で決定。マウスでクリックしてもえらべます。</li>
+  </ul>
+  <span class="nombre">4</span>
+</section>
+
+<!-- ================================================================ p5 -->
+<section class="page R c4" id="p5" data-label="p.5" data-title="操作のしかた：スマートフォン">
+  <header class="band nob"><h2><small>スマートフォン</small></h2></header>
+  <p class="a catch">両手で出撃！</p>
+  <div class="a phone portrait deco-fig" style="left:30px;top:66px" aria-hidden="true">
+    <div class="ph-bar"><i>Ⅱ</i></div>
+    <canvas class="ph-rom" data-still="play/normal" width="256" height="224"></canvas>
+    <div class="ph-deck"><i class="ph-stick"></i><i class="ph-wpn"></i><i class="ph-fire"></i></div>
+    <i class="thumb t-l"></i><i class="thumb t-r"></i>
+  </div>
+  <div class="a phone landscape deco-fig" style="left:150px;top:120px" aria-hidden="true">
+    <div class="ph-rail l"><i class="ph-p">Ⅱ</i><i class="ph-stick"></i></div>
+    <canvas class="ph-rom" data-still="play/normal" width="256" height="224"></canvas>
+    <div class="ph-rail r"><i class="ph-wpn"></i><i class="ph-fire"></i></div>
+    <i class="thumb t-l"></i><i class="thumb t-r"></i>
+  </div>
+  <span class="a tag" style="left:124px;top:66px" data-to="116,74">Ⅱボタン</span>
+  <span class="a tag" style="left:130px;top:100px" data-to="112,160">武器ボタン</span>
+  <span class="a tag" style="left:28px;top:226px" data-to="54,176">スティック</span>
+  <span class="a tag" style="left:96px;top:226px" data-to="104,190">撃つ</span>
+  <span class="a tag" style="left:156px;top:226px" data-to="174,196">スティック</span>
+  <span class="a tag" style="left:276px;top:226px" data-to="296,196">撃つ</span>
+  <ul class="a blist fs9" style="left:28px;top:256px;width:292px">
+    <li><b>画面の左半分</b>：さわった所にスティックが出ます。動かした方向へ進み、その方向を向きます。たおし具合でスピードがかわります。指をはなしても、向きはそのままです。撃つと、その向きの敵へ照準が少し合います。</li>
+    <li><b>画面の右半分</b>：押しているあいだ連射します（どこを押してもOK）。</li>
+    <li><b>武器ボタン</b>：タップするたびに、ノーマル→スプラッシュ→ロングバレルの順に切りかわります。</li>
+    <li><b>Ⅱボタン</b>：一時停止。画面を回転させたり、ほかのアプリに切りかえたりしたときも、自動で一時停止します。</li>
+    <li><b>メニュー</b>：画面の下（横持ちでは横）に出るボタンでえらびます。</li>
+  </ul>
+  <div class="a ao" style="left:28px;top:394px;width:292px">
+    <canvas class="px ao-face" data-spr="bust_ready" data-pal="blue" width="32" height="32" role="img" aria-label="アオ"></canvas>
+    <p class="bubble b-right" style="padding:4px 6px;font-size:10.5px">スティックは、さわった所に出てくるよ。</p>
+  </div>
+  <span class="nombre">5</span>
+</section>
+
+<!-- ================================================================ p6 -->
+<section class="page L c2" id="p6" data-label="p.6" data-title="ゲームの始めかた">
+  <header class="band"><span class="badge" role="img" aria-label="3章"><b>3</b></span><h2>ゲームの始めかた</h2></header>
+  <ol class="a steps" style="left:20px;top:72px;width:292px">
+    <li class="step">
+      <figure class="fig shot-m"><canvas class="shot" data-still="title/title" width="256" height="224"></canvas><figcaption>▲タイトル画面</figcaption></figure>
+      <p><i class="stepn">1</i>Enter キーを押すか、画面をタッチしよう。メニューが出ます。</p>
+    </li>
+    <li class="step">
+      <figure class="fig shot-m"><canvas class="shot" data-still="title/menu" width="256" height="224"></canvas><figcaption>▲メニュー</figcaption></figure>
+      <p><i class="stepn">2</i><span class="rom">ゲームスタート</span>でステージセレクトへ。<span class="rom">オプション</span>では、音のON/OFF（はじめはOFF）、おんがく（BGM）のON/OFF、サウンドテストができます。<span class="rom">せつめいしょ</span>でこの説明書が開きます。</p>
+    </li>
+  </ol>
+  <span class="nombre">6</span>
+</section>
+
+<!-- ================================================================ p7 -->
+<section class="page R c2" id="p7" data-label="p.7" data-title="ゲームの始めかた（つづき）">
+  <header class="band nob"><h2 class="sr">ゲームの始めかた（つづき）</h2></header>
+  <p class="a catch">まずは<br>『はじまりの中庭』で<br>遊んでみよう！</p>
+  <!-- the steps start below the 3-line catch (x180-320), so the first photo never runs under it -->
+  <ol class="a steps tight" start="3" style="left:28px;top:124px;width:292px">
+    <li class="step">
+      <figure class="fig shot-m"><canvas class="shot" data-still="title/stage1" width="256" height="224"></canvas><figcaption>▲ステージセレクト</figcaption></figure>
+      <p><i class="stepn">3</i>4つのステージから1つをえらびます。★の数は、あいて（コンピューター）の強さです。体力や水の量、武器の性能は、どのステージでも同じです。</p>
+    </li>
+    <li class="step">
+      <figure class="fig shot-m"><canvas class="shot" data-still="play/countdown" width="256" height="224"></canvas><figcaption>▲カウントダウン</figcaption></figure>
+      <p><i class="stepn">4</i>ステージ名とルールが出て、3・2・1のカウントのあとに試合開始！</p>
+    </li>
+  </ol>
+  <p class="a box tint note fs9" style="left:28px;top:412px;width:292px">※試合は1回最大90秒。1試合（1ラウンド）で勝ち負けが決まります。タイトル画面でしばらく何もしないでいると、デモが始まります。</p>
+  <span class="nombre">7</span>
+</section>
+
+<!-- ================================================================ p8 -->
+<section class="page L c4" id="p8" data-label="p.8" data-title="画面の見かた">
+  <header class="band"><span class="badge" role="img" aria-label="4章"><b>4</b></span><h2>画面の見かた</h2></header>
+  <figure class="a fig shot-l callout-fig" style="left:20px;top:72px" data-anchors="play.normal">
+    <canvas class="shot" data-still="play/normal" width="256" height="224"></canvas>
+    <figcaption class="sr">▲試合中の画面（番号は下の説明と同じ）</figcaption>
+  </figure>
+  <dl class="a nlist run fs9" style="left:20px;top:298px;width:292px">
+    <div><dt><i class="num">1</i>残り時間</dt><dd>90秒から減っていきます。わくの色は陣地のようす（中立／ブルー／オレンジ、取り合いのときは交互）。残り15秒で赤くなります</dd></div>
+    <div><dt><i class="num">2</i>ブルーの確保ゲージ</dt><dd>陣地を確保した時間の合計。旗まで届く（30.0秒）とブルーの勝ち</dd></div>
+    <div><dt><i class="num">3</i>オレンジの確保ゲージ</dt><dd>同じく、旗まで届くとオレンジの勝ち</dd></div>
+    <div><dt><i class="num">4</i>のこり人数</dt><dd>たおされた隊員の顔は×になります</dd></div>
+    <div><dt><i class="num">5</i>金の「×2」</dt><dd>陣地を確保しているチームは、水を使う攻撃が2倍</dd></div>
+    <div><dt><i class="num">6</i>メッセージ窓</dt><dd>陣地の確保、たおした・たおされた、水たまりがかれた、などをお知らせします（p19）</dd></div>
+    <div><dt><i class="num">7</i>中央の陣地</dt><dd>円の中にいると、受けるダメージが2倍</dd></div>
+    <div><dt><i class="num">8</i>きみ</dt><dd>▼マークの付いた隊員</dd></div>
+  </dl>
+  <span class="nombre">8</span>
+</section>
+
+<!-- ================================================================ p9 -->
+<section class="page R c4" id="p9" data-label="p.9" data-title="画面の見かた（つづき）">
+  <header class="band nob"><h2 class="sr">画面の見かた（つづき）</h2></header>
+  <p class="a catch">上は試合、下は自分。<br>見るのは2か｜所《しょ》だけ！</p>
+  <dl class="a nlist fs8" style="left:28px;top:68px;width:148px">
+    <div><dt><i class="num">9</i><span class="en">HP</span>（体力）</dt><dd>1マス10。0になるとたおされます。回復はしません。赤い「×2」が出ているあいだは、受けるダメージが2倍</dd></div>
+    <div><dt><i class="num">10</i>水（タンク）</dt><dd>1マス10。金の目もりより少ないと、弱い弾になります</dd></div>
+    <div><dt><i class="num">11</i>武器と状態</dt><dd>金のわくが今の武器。暗い影は待ち時間。下の英語は状態（右の表）</dd></div>
+    <div><dt><i class="num">12</i>レーダー</dt><dd>フィールド全体。水のある所、ポンプ、陣地、みんなの位置。点滅しているのがきみ</dd></div>
+  </dl>
+  <section class="a sub fs8" style="left:184px;top:112px;width:136px">
+    <h3 class="sub-h">武器の状態</h3>
+    <dl class="states">
+      <div><dt class="rom sm">READY</dt><dd>撃てる</dd></div>
+      <div><dt class="rom sm">WAIT</dt><dd>次に撃てるまでの秒数</dd></div>
+      <div><dt class="rom sm">CHARGE</dt><dd>ロングバレルをため｜中《ちゅう》</dd></div>
+      <div><dt class="rom sm">RECOIL</dt><dd>反動中（どの武器も撃てない）</dd></div>
+      <div><dt class="rom sm">PUMP</dt><dd>ポンプ操作中（撃てない）</dd></div>
+      <div><dt class="rom sm">WEAK OK</dt><dd>水が足りないので弱い弾だが、撃てる。</dd></div>
+    </dl>
+  </section>
+  <section class="a sub fs8" style="left:28px;top:270px;width:292px">
+    <h3 class="sub-h">画面のはしのしるし</h3>
+    <ul class="edges">
+      <li><canvas class="px ic" data-spr="edge_flag" data-pal="neutral" width="8" height="8" aria-hidden="true"></canvas><span><b>旗</b>＝画面の外にある陣地</span></li>
+      <li><canvas class="px ic" data-spr="edge_near" data-pal="orangeUI" width="8" height="8" aria-hidden="true"></canvas><span><b>›</b>＝近くにいる敵</span></li>
+      <li><canvas class="px ic" data-spr="edge_drop" data-pal="danger" width="8" height="8" aria-hidden="true"></canvas><span><b>水滴</b>＝画面の外でロングバレルをためている敵（光ったら、ねらう向きが決まった合図）</span></li>
+      <li><canvas class="px ic" data-spr="edge_hit" data-pal="danger" width="16" height="16" aria-hidden="true"></canvas><span><b>赤いくさび</b>＝撃たれた方向</span></li>
+    </ul>
+  </section>
+  <section class="a sub fs8 marks" style="left:28px;top:350px;width:292px">
+    <h3 class="sub-h">隊員のまわりのしるし</h3>
+    <ul class="mk">
+      <li><canvas class="px" data-art="mark-corners" width="28" height="28" aria-hidden="true"></canvas><span><b>赤い四すみ</b>＝受けるダメージ2倍（陣地の中／ポンプ操作中）</span></li>
+      <li><canvas class="px" data-art="mark-gold" width="28" height="28" aria-hidden="true"></canvas><span><b>金のふち</b>＝陣地を確保しているチーム（攻撃2倍）</span></li>
+      <li><canvas class="px" data-art="mark-recoil" width="28" height="28" aria-hidden="true"></canvas><span><b>だいだい色のギザギザ</b>＝ロングバレルの反動中（1区画1秒）</span></li>
+      <li><canvas class="px" data-art="mark-tank" width="28" height="28" aria-hidden="true"></canvas><span><b>背中のタンク</b>＝水の量</span></li>
+      <li><canvas class="px" data-art="mark-hp" width="28" height="28" aria-hidden="true"></canvas><span><b>足元のゲージ</b>＝体力（きみは30以下のとき、ほかの隊員は撃たれたときに表示）</span></li>
+    </ul>
+  </section>
+  <span class="nombre">9</span>
+</section>
+
+<!-- ================================================================ p10 -->
+<section class="page L c4 center-l" id="p10" data-label="p.10" data-title="勝ち負けのルール">
+  <header class="band"><span class="badge" role="img" aria-label="5章"><b>5</b></span><h2>勝ち負けのルール</h2></header>
+  <section class="a win" style="left:20px;top:68px;width:292px">
+    <h3 class="sub-h big">勝つには？</h3>
+    <ol class="bign">
+      <li><i>1</i><span>陣地を合計30秒確保する</span></li>
+      <li><i>2</i><span>あいてを全員たおす</span></li>
+    </ol>
+    <p class="fs9">※同時に起きたときは、全員たおしたほうが先に決まります。</p>
+    <p class="fs9">90秒たったら、確保タイムが多いチームの勝ち。同じなら引き分け。両チームが同時に全滅したときも引き分けです。</p>
+  </section>
+  <table class="a tbl fs9 mul" style="left:20px;top:164px;width:292px">
+    <caption>倍率の表（1回の攻撃で受けるダメージ）</caption>
+    <thead><tr><th scope="col">武器</th><th scope="col">ふつう</th><th scope="col">赤の×2だけ</th><th scope="col">金の×2だけ</th><th scope="col">両方</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">ノーマル</th><td>6</td><td>12</td><td>12</td><td>24</td></tr>
+      <tr><th scope="row">スプラッシュ（5粒全部）</th><td>30</td><td>60</td><td>60</td><td>120</td></tr>
+      <tr><th scope="row">ロングバレル</th><td>45</td><td>90</td><td>90</td><td>180</td></tr>
+      <tr><th scope="row">弱い弾</th><td>4</td><td>8</td><td>4</td><td>8</td></tr>
+    </tbody>
+  </table>
+  <div class="a mapcut" style="left:180px;top:262px;width:160px;height:192px">
+    <canvas class="px map-half" data-art="map-tutorial" width="320" height="192" role="img" aria-label="入門ステージの地図（左半分）"></canvas>
+  </div>
+  <span class="a tag" style="left:192px;top:268px" data-to="327,300">大きな水たまり</span>
+  <span class="a tag" style="left:186px;top:428px" data-to="236,356">小さな水たまり</span>
+  <span class="a tag" style="left:186px;top:402px" data-to="236,388">ポンプ</span>
+  <span class="a tag" style="left:236px;top:326px" data-to="212,350">ブルーのスタート</span>
+  <section class="a box tint final" style="left:20px;top:262px;width:152px">
+    <h3 class="box-h">最後の15秒</h3>
+    <p class="fs9">水たまりとポンプの水がすべてなくなり、生きている全員のタンクの水が5より少なくなると、「最後の15秒」が始まります。残り時間が15秒より多いときは15秒になります（90秒をこえて延長はしません）。時間切れは確保タイムで勝負！ 全滅や30秒確保なら、その時点で決着します。</p>
+  </section>
+  <i class="staple s1 deco" aria-hidden="true"></i><i class="staple s2 deco" aria-hidden="true"></i>
+  <span class="nombre">10</span>
+</section>
+
+<!-- ================================================================ p11 -->
+<section class="page R c4 center-r" id="p11" data-label="p.11" data-title="勝ち負けのルール（つづき）">
+  <header class="band nob"><h2 class="sr">勝ち負けのルール（つづき）</h2></header>
+  <p class="a catch sm">中央の陣地を、なかまと<br>いっしょに守りぬこう！</p>
+  <section class="a zone-rule fs9" style="left:28px;top:68px;width:292px">
+    <i class="dodge r" aria-hidden="true"></i>
+    <h3 class="sub-h big">陣地のルール</h3>
+    <ul class="blist">
+      <li>円の中に片方のチームだけがいるあいだ、そのチームの確保タイムがふえます。両チームが円の中にいると「取り合い」になり、どちらもふえません（<strong>試合時間は止まりません</strong>）。円の中にだれもいなくなると中立にもどります。</li>
+      <li><b class="gold">金の「×2」</b>：確保しているチームの全員は、水を使う攻撃の威力が2倍。撃った瞬間に決まり、金色の弾になります。弱い弾は2倍になりません。</li>
+      <li><b class="red">赤の「×2」</b>：円の中にいる隊員と、ポンプを操作中の隊員は、受けるダメージが2倍。チームや確保しているかどうかに関係ありません。2つが重なっても2倍までです。</li>
+    </ul>
+  </section>
+  <div class="a mapcut" style="left:0;top:262px;width:160px;height:192px">
+    <canvas class="px map-half r" data-art="map-tutorial" width="320" height="192" role="img" aria-label="入門ステージの地図（右半分）"></canvas>
+  </div>
+  <span class="a tag" style="left:26px;top:270px" data-to="14,343">陣地</span>
+  <span class="a tag" style="left:36px;top:326px" data-to="128,350">オレンジのスタート</span>
+  <section class="a box tint down" style="left:168px;top:308px;width:152px">
+    <h3 class="box-h">たおされたら</h3>
+    <p class="fs9">その試合では復活しません。体力の回復もありません。なかまが戦っているあいだは試合がつづくので、応援しよう。</p>
+  </section>
+  <i class="staple s1 deco" aria-hidden="true"></i><i class="staple s2 deco" aria-hidden="true"></i>
+  <span class="nombre">11</span>
+</section>
+
+<!-- ================================================================ p12 -->
+<section class="page L c4" id="p12" data-label="p.12" data-title="水と補給">
+  <header class="band"><span class="badge" role="img" aria-label="6章"><b>6</b></span><h2>水と補給</h2></header>
+  <div class="a flow fs9" style="left:20px;top:66px;width:292px" role="img" aria-label="水の流れ：水たまりからタンク、タンクから弾、弾はなくなる。ポンプは水たまりへ。たおされるとタンクの水はこぼれる。">
+    <span class="fb p" style="left:0;top:10px">ポンプ</span><span class="fa" style="left:46px;top:12px">→</span>
+    <span class="fb w" style="left:60px;top:10px">水たまり</span><span class="fa" style="left:118px;top:12px">→</span>
+    <span class="fb t" style="left:132px;top:10px">タンク</span><span class="fa" style="left:180px;top:12px">→</span>
+    <span class="fb" style="left:194px;top:10px">弾</span><span class="fa" style="left:222px;top:12px">→</span>
+    <span class="fb x" style="left:236px;top:10px">なくなる</span>
+    <span class="fa" style="left:150px;top:30px">↓</span>
+    <span class="fb d" style="left:118px;top:48px">たおされる</span><span class="fa" style="left:184px;top:50px">→</span>
+    <span class="fb x" style="left:198px;top:48px">こぼれる</span>
+  </div>
+  <section class="a fs9" style="left:20px;top:146px;width:292px">
+    <h3 class="sub-h">水たまりで水をくむ</h3>
+    <ul class="blist">
+      <li>水たまりに入ると、背中のタンクに水がたまります（1秒に25。撃ちながらだと1秒に5）。</li>
+      <li>タンクは最大100。試合開始時は50（ノーマルで｜10発分《じっぱつぶん》）です。</li>
+      <li>くんだ分だけ水たまりの水が減り、水面が小さくなります。からっぽになると、かわいた跡が残ります。</li>
+      <li>タンクが満タンのときは減りません。何人かでいっしょにくんでも、水がふえることはありません。</li>
+      <li>水たまりの中では動きがおそくなります（小さい水たまりで最大15%、大きい水たまりで最大30%。水が減るとおそくなりにくくなります）。いくつかの「おそくなる」が重なったときは、いちばん強いものだけがかかります。</li>
+    </ul>
+  </section>
+  <table class="a tbl fs9 amount" style="left:20px;top:332px;width:170px">
+    <caption>水の量</caption>
+    <thead><tr><th scope="col">水源</th><th scope="col">水の量</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">小さな水たまり</th><td>70（最大100）×2</td></tr>
+      <tr><th scope="row">大きな水たまり</th><td>180（最大250）×2</td></tr>
+      <tr><th scope="row">ポンプ</th><td>100×4</td></tr>
+      <tr><th scope="row">隊員のタンク</th><td>50×6</td></tr>
+      <tr class="sum"><th scope="row">合計</th><td>1200</td></tr>
+    </tbody>
+  </table>
+  <p class="a box imp fs9" style="left:198px;top:346px;width:114px"><b class="imp-h">！重要</b>撃った水はもどりません。たおされた隊員のタンクの水も、なくなってしまいます。</p>
+  <span class="nombre">12</span>
+</section>
+
+<!-- ================================================================ p13 -->
+<section class="page R c4" id="p13" data-label="p.13" data-title="水と補給（つづき）">
+  <header class="band nob"><h2 class="sr">水と補給（つづき）</h2></header>
+  <p class="a catch">水は、<br>使えばなくなる！</p>
+  <h3 class="a sub-h" style="left:28px;top:70px;width:146px">ポンプで水たまりに水を足す</h3>
+  <ol class="a pumpsteps fs9" style="left:28px;top:118px;width:292px">
+    <li><canvas class="px" data-art="pump-1" width="44" height="36" aria-hidden="true"></canvas><span>ポンプの足あとマークの近くで止まる</span></li>
+    <li><canvas class="px" data-art="pump-2" width="44" height="36" aria-hidden="true"></canvas><span>自動で操作位置まで歩いていく</span></li>
+    <li><canvas class="px" data-art="pump-3" width="44" height="36" aria-hidden="true"></canvas><span>レバーを動かして、つながった水たまりへ1秒に10ずつ水を送る</span></li>
+  </ol>
+  <p class="a box warn fs9" style="left:28px;top:262px;width:292px"><b class="warn-h">※注意</b>ポンプの水はタンクには入りません（水たまりでくもう）。操作中は撃てません（弱い弾も）。受けるダメージも2倍！ 動くとすぐに止まります。1つのポンプは｜1人《ひとり》ずつ。水たまりがいっぱいのときや、ポンプがからのときは使えません。ポンプのそばにいるだけのときや、歩いているあいだは2倍になりません。ポンプは両チームが使えます。</p>
+  <span class="nombre">13</span>
+</section>
+
+<!-- ================================================================ p14 -->
+<section class="page L c2" id="p14" data-label="p.14" data-title="水鉄砲大図鑑">
+  <header class="band"><span class="badge" role="img" aria-label="7章"><b>7</b></span><h2>水鉄砲大図鑑</h2></header>
+  <div class="a cards" style="left:14px;top:66px;width:304px">
+    <article class="card">
+      <header><canvas class="px wicon" data-spr="icon_normal" data-pal="blue" width="16" height="16" aria-hidden="true"></canvas><h3>ノーマル</h3></header>
+      <div class="range" role="img" aria-label="射程 360（ロングバレルの約4分の1）"><i style="width:25.71%"></i></div>
+      <dl class="stats"><div><dt>射程</dt><dd>360</dd></div><div><dt>威力</dt><dd>6</dd></div><div><dt>間隔</dt><dd>0.2秒ごと</dd></div><div><dt>水</dt><dd>5</dd></div></dl>
+      <p class="say">まっすぐ飛ぶ、たよれる基本の1丁。中くらいの距離で連射しよう。</p>
+    </article>
+    <article class="card">
+      <header><canvas class="px wicon" data-spr="icon_splash" data-pal="blue" width="16" height="16" aria-hidden="true"></canvas><h3>スプラッシュ</h3></header>
+      <div class="range" role="img" aria-label="射程 120"><i style="width:8.57%"></i></div>
+      <dl class="stats"><div><dt>射程</dt><dd>120</dd></div><div><dt>威力</dt><dd>6×5粒（全部当たれば30）</dd></div><div><dt>間隔</dt><dd>0.8秒ごと</dd></div><div><dt>水</dt><dd>15</dd></div></dl>
+      <p class="say">扇の形に5粒がバシャッ！ 近づいて、まとめて当てよう。</p>
+    </article>
+  </div>
+  <section class="a box tint fs9" style="left:20px;top:268px;width:292px">
+    <h3 class="box-h">ロングバレルのため撃ち</h3>
+    <p>ためているあいだは動きが70%、向きはゆっくりしか変えられません（1秒に135度まで）。最後の0.2秒は向きが決まり、予告線が出ます（あいてにも見えます）。攻撃をはなす、持ちかえる、撃たれてひるむ、ポンプを操作する、一時停止する、のどれかで中止。水と待ち時間は、撃ったときだけ使います。</p>
+  </section>
+  <section class="a box tint2 fs9" style="left:20px;top:368px;width:292px">
+    <h3 class="box-h">ひるみ</h3>
+    <p>弱い弾以外で撃たれると、0.2秒のあいだ動きが少しおそくなり（80%）、はじめの0.1秒は撃てません（ためも止まります）。続けて撃たれても長くならず、終わってから0.6秒はひるみません（ダメージは受けます）。</p>
+  </section>
+  <span class="nombre">14</span>
+</section>
+
+<!-- ================================================================ p15 -->
+<section class="page R c2" id="p15" data-label="p.15" data-title="水鉄砲大図鑑（つづき）">
+  <header class="band nob"><h2 class="sr">水鉄砲大図鑑（つづき）</h2></header>
+  <p class="a catch">3つの武器を<br>使いわけよう！</p>
+  <div class="a cards" style="left:22px;top:114px;width:304px">
+    <article class="card">
+      <header><canvas class="px wicon" data-spr="icon_long" data-pal="blue" width="16" height="16" aria-hidden="true"></canvas><h3>ロングバレル</h3></header>
+      <div class="range" role="img" aria-label="射程 1400（いちばん長い）"><i style="width:100%"></i></div>
+      <dl class="stats"><div><dt>射程</dt><dd>1400</dd></div><div><dt>威力</dt><dd>45（敵をつらぬく。かべと場外で止まる）</dd></div><div><dt>間隔</dt><dd>再使用まで15秒</dd></div><div><dt>水</dt><dd>25</dd></div></dl>
+      <p class="say">押しつづけて0.8秒でドン！ 撃ったあとの5秒間は反動で、どの武器も撃てず、動きも半分に。</p>
+    </article>
+    <article class="card weak">
+      <header><canvas class="px wicon" data-art="weak-icon" width="16" height="16" aria-hidden="true"></canvas><h3>弱い弾</h3></header>
+      <div class="range" role="img" aria-label="射程 180"><i style="width:12.86%"></i></div>
+      <dl class="stats"><div><dt>射程</dt><dd>180</dd></div><div><dt>威力</dt><dd>4</dd></div><div><dt>間隔</dt><dd>0.6秒ごと</dd></div><div><dt>水</dt><dd>0</dd></div></dl>
+      <p class="say">水が足りないと、どの武器も自動でこの弾に。金の×2はつかず、あいてをひるませません。</p>
+    </article>
+  </div>
+  <p class="a cutnote fs8" style="left:28px;top:84px">✂ ※電子版では切り取れません</p>
+  <section class="a box tint fs9" style="left:28px;top:322px;width:292px">
+    <h3 class="box-h">共通のルール</h3>
+    <p>味方には当たりません。どの武器もかべで止まり、射程のはしで水滴になって消えます。武器ごとの待ち時間は、持ちかえても、水をくんでもつづきます。ロングバレルの待ち時間中にロングバレルをえらんでいると、弱い弾も撃てません。撃ったあとは、持ちかえても少し待ちます（ふつうの弾は0.2秒、弱い弾は0.6秒）。</p>
+  </section>
+  <span class="nombre">15</span>
+</section>
+
+<!-- ================================================================ p16 -->
+<section class="page L c4" id="p16" data-label="p.16" data-title="ステージ紹介">
+  <header class="band"><span class="badge" role="img" aria-label="8章"><b>8</b></span><h2>ステージ紹介</h2></header>
+  <p class="a catch">4つのステージ、<br>水の量はどこも同じ！</p>
+  <div class="a stages" style="left:20px;top:112px;width:292px">
+    <article class="stg"><canvas class="px prev" data-art="preview-1" width="100" height="60" aria-hidden="true"></canvas><h3><span class="en">STAGE 1</span> はじまりの中庭</h3><p class="lv">入門 <span class="stars" aria-label="星1つ">★</span></p><p class="desc">水辺を通って中央へ。短い壁と広い道の、穏やかな中庭。</p></article>
+    <article class="stg"><canvas class="px prev" data-art="preview-2" width="100" height="60" aria-hidden="true"></canvas><h3><span class="en">STAGE 2</span> ふたつの水辺</h3><p class="lv">初級 <span class="stars" aria-label="星2つ">★★</span></p><p class="desc">左右の大水場で準備し、中央の小水場へ前進。補給線を押し上げよう。</p></article>
+    <article class="stg"><canvas class="px prev" data-art="preview-3" width="100" height="60" aria-hidden="true"></canvas><h3><span class="en">STAGE 3</span> 斜めの水路</h3><p class="lv">中級 <span class="stars" aria-label="星3つ">★★★</span></p><p class="desc">斜めに連なる水場と曲がり角。水場を渡り、別の角度から攻め込もう。</p></article>
+    <article class="stg"><canvas class="px prev" data-art="preview-4" width="100" height="60" aria-hidden="true"></canvas><h3><span class="en">STAGE 4</span> 中央貯水区</h3><p class="lv">上級 <span class="stars" aria-label="星4つ">★★★★</span></p><p class="desc">水の大半は中央の上下に。射線を切り、陣地防衛と補給を交代しよう。</p></article>
+  </div>
+  <div class="a stg-foot fs9" style="left:20px;top:402px;width:292px">
+    <p class="tut">※入門では、あいては最初の4秒間ゆっくり進み、撃ってきません。</p>
+    <p>どのステージも、水の量（小さな水たまり70×2、大きな水たまり180×2、ポンプ100×4）は同じ。配置も両チームで同じ形（180度回転）です。ちがうのは地形と水場の場所、そしてあいての強さです。</p>
+  </div>
+  <span class="nombre">16</span>
+</section>
+
+<!-- ================================================================ p17 -->
+<section class="page R c4" id="p17" data-label="p.17" data-title="一時停止とリザルト">
+  <header class="band"><span class="badge" role="img" aria-label="9章"><b>9</b></span><h2>一時停止とリザルト</h2></header>
+  <section class="a fs9 pause-sec" style="left:28px;top:66px;width:292px">
+    <h3 class="sub-h">一時停止</h3>
+    <figure class="fig shot-s fl"><canvas class="shot" data-still="play/pause" width="256" height="224"></canvas><figcaption>▲一時停止</figcaption></figure>
+    <p>Esc キーかⅡボタンで一時停止。左は戦況の地図、右はステージ、残り時間、のこり人数、フィールドの水、武器。メニューは<span class="rom xs">つづける</span><span class="rom xs">やりなおす</span>（確認なしで最初から）<span class="rom xs">ステージ選択</span><span class="rom xs">せつめいしょ</span>。</p>
+  </section>
+  <section class="a fs9 res-sec" style="left:28px;top:192px;width:292px">
+    <h3 class="sub-h">リザルト</h3>
+    <div class="res-shots">
+      <figure class="fig shot-s"><canvas class="shot" data-still="result/win-1" width="256" height="224"></canvas><figcaption><i class="num">1</i></figcaption></figure>
+      <figure class="fig shot-s"><canvas class="shot" data-still="result/win-2" width="256" height="224"></canvas><figcaption><i class="num">2</i></figcaption></figure>
+      <figure class="fig shot-s"><canvas class="shot" data-still="result/win-3" width="256" height="224"></canvas><figcaption><i class="num">3</i></figcaption></figure>
+    </div>
+    <ol class="nl">
+      <li><i class="num">1</i><b>勝ち負けのページ</b>：確保タイムと決着の理由。</li>
+      <li><i class="num">2</i><b>成績表のページ</b>：<span class="en">KO</span>＝たおした数／<span class="en">HIT/SHOT</span>＝命中した粒の数／撃った回数（スプラッシュは1回で5粒、ロングバレルはつらぬくので、撃った回数より多くなることがあります）／<span class="en">WATER</span>＝くんだ水の量／<span class="en">ZONE</span>＝自分のチームが確保しているあいだに陣地の中にいた時間（｜2人《ふたり》で入れば｜2人《ふたり》とも数えるので、チームの確保タイムより多くなることもあります）。いちばん大きい数字は金色。</li>
+      <li><i class="num">3</i><b>水のゆくえのページ</b>：撃った水、こぼれた水、タンクの水、のこった水を足すと1200。きみの「しょうごう」とヒント。</li>
+    </ol>
+    <p class="fs9">※Enter キーかタッチで演出を早送り。もう一度押すと次のページへ。</p>
+  </section>
+  <span class="nombre">17</span>
+</section>
+
+<!-- ================================================================ p18 -->
+<section class="page L c4" id="p18" data-label="p.18" data-title="勝つためのヒント">
+  <header class="band"><span class="badge" role="img" aria-label="10章"><b>10</b></span><h2>勝つためのヒント</h2></header>
+  <ol class="a tips fs10" style="left:20px;top:70px;width:292px">
+    <li>撃ちきる前に、もどる水たまりを決めておこう。開始時の水はノーマル｜10発分《じっぱつぶん》。</li>
+    <li>補給のあとは中央へ。あいてが陣地にいるときは、入るだけで確保タイムがふえるのを止められる。</li>
+    <li>陣地の中は受けるダメージ2倍。かべのかげから、入るタイミングをはかろう。</li>
+    <li>予告線が見えたら横へよけよう。ロングバレルは敵をつらぬくぞ。</li>
+    <li>ポンプは水たまりに水を足せる。でも操作中は2倍ダメージ。なかまに守ってもらおう。</li>
+    <li>水がなくても弱い弾で戦える。ただし2倍ボーナスはつかないぞ。</li>
+    <li>あいての背中のタンクを見よう。水が少ないあいては弱い弾しか撃てない。</li>
+    <li>満タンになる前に補給を切りあげるのも、作戦のうち。</li>
+  </ol>
+  <div class="a ao ao-r" style="left:52px;top:380px;width:260px">
+    <p class="bubble b-left">水はかぎられている。<br>それがこのゲームの<br>いちばん大事なところだよ！</p>
+    <canvas class="px ao-face" data-spr="bust_win1" data-pal="blue" width="32" height="32" role="img" aria-label="アオ"></canvas>
+  </div>
+  <span class="nombre">18</span>
+</section>
+
+<!-- ================================================================ p19 -->
+<section class="page R c4" id="p19" data-label="p.19" data-title="メッセージ早見表">
+  <header class="band nob"><h2>メッセージ早見表</h2></header>
+  <p class="a catch sm">画面の上の窓に、戦いの<br>ニュースが出るぞ！</p>
+  <table class="a tbl fs8 msgs" style="left:28px;top:102px;width:292px">
+    <thead><tr><th scope="col">メッセージ</th><th scope="col">意味</th><th scope="col">音</th></tr></thead>
+    <tbody>
+      <tr><td><span class="rom msg">中央の 陣地を とれ!</span></td><td>試合開始</td><td>—</td></tr>
+      <tr><td><span class="rom msg t-blue">ブルーが 陣地を 確保!</span></td><td>ブルーが確保</td><td>ピロッ↑</td></tr>
+      <tr><td><span class="rom msg t-orange">オレンジが 陣地を 確保!</span></td><td>オレンジが確保</td><td>ピロッ↓</td></tr>
+      <tr><td><span class="rom msg">陣地を とりあい中!</span></td><td>取り合いになった</td><td>—</td></tr>
+      <tr><td><span class="rom msg">陣地が 中立に もどった</span></td><td>中立にもどった</td><td>—</td></tr>
+      <tr><td><span class="rom msg t-blue">カイを たおした!</span></td><td>きみがたおした</td><td>バシャッ</td></tr>
+      <tr><td><span class="rom msg t-blue">アオが レンを たおした</span></td><td>ほかの隊員がたおした</td><td>—</td></tr>
+      <tr><td><span class="rom msg t-red">やられた… なかまを おうえん</span></td><td>きみがたおされた</td><td>—</td></tr>
+      <tr><td><span class="rom msg">北の 水たまりが 枯れた</span></td><td>水たまりがかれた</td><td>コポッ</td></tr>
+      <tr><td><span class="rom msg t-red">体力わずか! かくれよう</span></td><td><span class="en">HP</span>が30以下</td><td>—</td></tr>
+      <tr><td><span class="rom msg t-red">通常弾 1発で ダウン!</span></td><td><span class="en">HP</span>が6以下</td><td>—</td></tr>
+      <tr><td><span class="rom msg t-red">あと 1発で ダウン!</span></td><td><span class="en">HP</span>が4以下</td><td>—</td></tr>
+      <tr><td><span class="rom msg t-blue">ブルー あと5秒で かち!</span></td><td>ブルーの確保25秒</td><td>—</td></tr>
+      <tr><td><span class="rom msg t-orange">オレンジ あと5秒で かち!</span></td><td>オレンジの確保25秒</td><td>—</td></tr>
+      <tr><td><span class="rom msg">のこり 15秒!</span></td><td>残り15秒</td><td>—</td></tr>
+      <tr><td><span class="rom msg t-red">水が つきた! のこり15秒</span></td><td>「最後の15秒」</td><td>ブブー×2</td></tr>
+      <tr><td><span class="rom msg">陣地の中は ダメージ×2</span><span class="rom msg">ポンプ中は うてない!</span><span class="rom msg">水が へった! 水たまりへ</span></td><td>入門だけのヒント（1回ずつ）</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <p class="a fs8 msg-note" style="left:28px;top:436px;width:262px">※名前・方角・秒数は、そのときの内容に変わります。わくの色は、ふつう・ブルー・オレンジ・急ぎ（赤）です。</p>
+  <span class="nombre">19</span>
+</section>
+
+<!-- ================================================================ p20 -->
+<section class="page L c2" id="p20" data-label="p.20" data-title="MEMO">
+  <h2 class="a h-memo" style="left:20px;top:28px"><span class="en">MEMO</span> きろくをつけよう！</h2>
+  <table class="a tbl memo fs9" style="left:20px;top:84px;width:292px">
+    <thead><tr><th scope="col">日付</th><th scope="col">ステージ</th><th scope="col">勝ち負け</th><th scope="col">確保タイム</th><th scope="col">ひとこと</th></tr></thead>
+    <tbody id="memo-body"></tbody>
+  </table>
+  <div class="a ao ao-r" style="left:56px;top:392px;width:256px">
+    <p class="bubble b-left">自己ベストの確保タイムを<br>書いておこう！</p>
+    <canvas class="px ao-face" data-spr="bust_ready" data-pal="blue" width="32" height="32" role="img" aria-label="アオ"></canvas>
+  </div>
+  <span class="nombre">20</span>
+</section>
+
+<!-- ================================================================ 表3 -->
+<section class="page R c2" id="cover3" data-label="表3" data-title="STAFF">
+  <h2 class="a h-staff en" style="left:28px;top:64px;width:292px">STAFF</h2>
+  <dl class="a staff en" style="left:28px;top:128px;width:292px">
+    <div><dt>GAME DESIGN</dt><dd>GUN SPLASH PROJECT</dd></div>
+    <div><dt>PROGRAM</dt><dd>GUN SPLASH PROJECT</dd></div>
+    <div><dt>GRAPHIC DESIGN</dt><dd>GUN SPLASH PROJECT</dd></div>
+    <div><dt>SOUND</dt><dd>GUN SPLASH PROJECT</dd></div>
+    <div><dt>MANUAL</dt><dd>GUN SPLASH PROJECT</dd></div>
+  </dl>
+  <canvas class="a px staff-drop deco" data-spr="drop16" data-pal="water" width="16" height="16" aria-hidden="true"></canvas>
+  <p class="a staff-c en" style="left:28px;top:400px;width:292px">©199X GUN SPLASH PROJECT</p>
+  <p class="a staff-k" style="left:28px;top:420px;width:292px">禁無断転載</p>
+</section>
+
+<!-- ================================================================ 表4 -->
+<section class="page L c4 cover4" id="cover4" data-label="表4" data-title="裏表紙">
+  <h2 class="sr">裏表紙</h2>
+  <canvas class="a px back-logo" data-art="logo" width="200" height="72" role="img" aria-label="ガン・スプラッシュ"></canvas>
+  <p class="a back-code en">GS-SPL</p>
+  <p class="a back-c en">©199X GUN SPLASH PROJECT</p>
+  <p class="a back-legal">このソフトおよび説明書を、無断で複製・賃貸することを禁じます。</p>
+</section>
+
+      </div><!-- /#book -->
+
+<!-- ================================================================ 電子版だけの付録（紙の体裁にしない） -->
+<section id="extra" class="extra" data-label="付録" data-title="電子版だけの付録" hidden>
+  <div class="ex-inner">
+    <p class="ex-kicker">電子版だけの付録</p>
+    <h2>復刻版について</h2>
+    <dl class="ex-list">
+      <div><dt>表示</dt><dd>ドット等倍＝はじめの設定・正方形のドット／4:3＝当時のテレビに近い横長／ブラウン管風＝走査線</dd></div>
+      <div><dt>拡大</dt><dd>自動（はじめの設定）／せいすう（整数倍でくっきり）／いっぱい（画面いっぱい）</dd></div>
+      <div><dt>壁紙</dt><dd>すいめん／さぎょうだい／なし</dd></div>
+      <div><dt>字幕</dt><dd>ゲーム画面のメッセージ窓の文を、画面のすぐ外に1行で表示します（はじめはOFF。読み上げにはいつも流れます）</dd></div>
+      <div><dt>おんがく</dt><dd>BGMのON/OFF（はじめはON。音がOFFのときは鳴りません）</dd></div>
+      <div><dt>けいこくおん</dt><dd>体力が少ないときの音のON/OFF</dd></div>
+      <div><dt>動きをへらす</dt><dd>モザイク・揺れ・点滅・カウントアップを省きます</dd></div>
+      <div><dt>自動一時停止</dt><dd>ほかのアプリやタブに切りかえたとき、スマートフォンを回転させたとき</dd></div>
+      <div><dt>説明書</dt><dd>いつでも上のボタンから。試合中に開くと一時停止します</dd></div>
+    </dl>
+    <h2>おことわり</h2>
+    <p>本書は、当時の取扱説明書を電子化したものです。当時の表現をできるだけ残していますが、操作方法と注意事項は、現在の遊び方（キーボードとマウス、タッチ操作）に合わせて改めています。また、ゲーム画面の一部の表記（「PUSH ENTER KEY」「TOUCH THE SCREEN」、タイトルメニューの「せつめいしょ」）も、同じ理由で改めています。</p>
+    <p class="ex-c">©199X GUN SPLASH PROJECT ／ 復刻版 ©20XX GUN SPLASH PROJECT</p>
+  </div>
+</section>
+
+    </div><!-- /#mv-slide -->
+  </div><!-- /#mv-fit -->
+</main>
+
+<footer id="mv-bot">
+  <button type="button" class="mv-btn mv-nav" data-act="prev" aria-label="まえのページ">◀</button>
+  <label class="mv-slider"><span class="sr">ページ</span><input type="range" id="mv-range" min="0" step="1" value="0" aria-valuetext="表1"><output id="mv-range-out" aria-hidden="true">表1</output></label>
+  <button type="button" class="mv-btn mv-nav" data-act="next" aria-label="つぎのページ">▶</button>
+  <button type="button" class="mv-btn" data-act="toc">もくじ</button>
+  <button type="button" class="mv-btn" data-act="thumbs" aria-expanded="false" aria-controls="mv-thumbs">一覧</button>
+</footer>
+
+<aside id="mv-thumbs" hidden aria-label="ページ一覧">
+  <div class="th-head"><h2>ページ一覧</h2><button type="button" class="mv-btn" data-act="thumbs-close" aria-label="一覧を閉じる">×</button></div>
+  <div class="th-grid" id="mv-thumb-grid"></div>
+</aside>
+
+<div id="mv-live" class="sr" aria-live="polite" aria-atomic="true"></div>
+
+<script src="js/core.js"></script>
+<script src="js/bgm.js"></script>
+<script src="js/bgm-tracks.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/sprites-field.js"></script>
+<script src="js/sprites-bust.js"></script>
+<script src="js/data.js"></script>
+<script src="js/title.js"></script>
+<script src="js/play.js"></script>
+<script src="js/result.js"></script>
+<script src="js/manual.js"></script>
+<!-- the real rules (deferred module: runs after the classic scripts). GS.installApp opens the boot gate; data.js
+     converts the stages inside it (GS.whenReady -> GS.setGameData), before GS.boot({headless:true}) resolves.
+     Without game.mjs the app is installed with no rules: the gate still opens, the screen photos keep their
+     placeholders and the stage maps stay blank. -->
+<script type="module">
+  const GS = window.GS;
+  const install = rules => GS.installApp({ live: false, rules });
+  import('./game.mjs').then(install, e => {
+    console.error('[manual] game.mjs could not be loaded: the screen photos show placeholders and the maps stay blank', e);
+    install(null);
+  });
+</script>
+</body>
+</html>

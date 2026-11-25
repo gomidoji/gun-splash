@@ -1,0 +1,117 @@
+<!doctype html>
+<!-- data-live: the real game. app.mjs installs GS.app; until then js/core.js holds the ROM loop (boot gate). -->
+<html lang="ja" data-live>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#101820">
+<meta name="description" content="有限の水で戦う、3対3の水鉄砲ゲーム。水たまりを選び、補給を見切り、中央の陣地を制圧しよう。">
+<title>ガン・スプラッシュ 復刻版</title>
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="./fonts/fonts.css">
+<link rel="stylesheet" href="./style.css">
+<link rel="modulepreload" href="./app.mjs">
+<link rel="modulepreload" href="./game.mjs">
+<link rel="modulepreload" href="./aim.mjs">
+</head>
+<body class="lay-pc wp-water boot-open">
+<div id="app">
+  <header id="topbar">
+    <div class="brand"><span class="wordmark">GUN SPLASH</span><span class="tag">復刻版</span></div>
+    <nav class="tools" aria-label="復刻版のメニュー">
+      <button type="button" class="tb tb-pause" data-act="pause" hidden aria-label="ポーズ">Ⅱ</button>
+      <button type="button" class="tb" data-act="manual" aria-label="せつめいしょ"><span class="long">せつめいしょ</span><span class="short" aria-hidden="true">本</span></button>
+      <button type="button" class="tb pc-only" data-act="display" id="tb-display">表示</button>
+      <button type="button" class="tb pc-only" data-act="sound" id="tb-sound">音 OFF</button>
+      <button type="button" class="tb" data-act="settings">設定</button>
+      <button type="button" class="tb tb-mock" data-act="mock">MOCK</button>
+    </nav>
+  </header>
+
+  <div id="stage">
+    <div id="bezel">
+      <canvas id="rom" width="256" height="224" role="img" aria-label="ゲーム画面"></canvas>
+      <div id="crt" aria-hidden="true"></div>
+    </div>
+  </div>
+  <div id="subtitle" aria-hidden="true"></div>
+  <div id="deck" role="group" aria-label="そうさ"></div>
+  <div id="rail-l" class="rail rail-l" role="group" aria-label="そうさ（左）"></div>
+  <div id="rail-r" class="rail rail-r" role="group" aria-label="そうさ（右）"></div>
+  <footer id="legend" aria-label="キー操作"></footer>
+</div>
+
+<div id="stick" aria-hidden="true"><div class="knob"></div></div>
+
+<section id="boot" aria-labelledby="boot-title">
+  <div class="boot-inner">
+    <figure class="pkg">
+      <div class="pkg-box">
+        <div class="pkg-band"><span>GS-SPL</span><span>16ビット家庭用ゲーム機用</span></div>
+        <div class="pkg-bezel"><canvas id="boot-shot" width="256" height="224" role="img" aria-label="タイトル画面"></canvas></div>
+        <div class="pkg-foot">GUN SPLASH</div>
+      </div>
+      <figcaption>199X年に発売されたカートリッジの復刻</figcaption>
+    </figure>
+    <div class="boot-text">
+      <h1 id="boot-title">ガン・スプラッシュ <span class="tag">復刻版</span></h1>
+      <p class="lead">199X年の 3対3 水でっぽう陣取りを、いまの画面で。</p>
+      <div class="boot-btns">
+        <button type="button" class="btn primary" data-act="play-mute">▶ あそぶ（音なし）</button>
+        <button type="button" class="btn" data-act="play-sound">▶ あそぶ（音あり）</button>
+        <button type="button" class="btn ghost" data-act="boot-manual">取扱説明書をよむ</button>
+      </div>
+      <p class="credit">©199X GUN SPLASH PROJECT ／ 復刻版 ©20XX GUN SPLASH PROJECT</p>
+    </div>
+  </div>
+</section>
+
+<aside id="settings" class="panel" hidden role="dialog" aria-modal="true" aria-labelledby="settings-title">
+  <header class="panel-head"><h2 id="settings-title">設定</h2><button type="button" class="x" data-act="close-settings" aria-label="閉じる">×</button></header>
+  <p class="panel-note">開いている間は、ゲームを止めています。</p>
+  <div>
+    <div class="row"><span class="k" id="lbl-display">表示</span><div class="seg" data-key="display" role="radiogroup" aria-labelledby="lbl-display"><button type="button" data-v="dot">ドット等倍</button><button type="button" data-v="43">4:3</button><button type="button" data-v="crt">ブラウン管風</button></div></div>
+    <div class="row"><span class="k" id="lbl-scale">拡大</span><div class="seg" data-key="scaleMode" role="radiogroup" aria-labelledby="lbl-scale"><button type="button" data-v="auto">自動</button><button type="button" data-v="int">せいすう</button><button type="button" data-v="fill">いっぱい</button></div></div>
+    <div class="row"><span class="k" id="lbl-wp">壁紙</span><div class="seg" data-key="wallpaper" role="radiogroup" aria-labelledby="lbl-wp"><button type="button" data-v="water">すいめん</button><button type="button" data-v="desk">さぎょうだい</button><button type="button" data-v="none">なし</button></div></div>
+    <div class="row"><span class="k" id="lbl-sound">音</span><div class="seg" data-key="sound" role="radiogroup" aria-labelledby="lbl-sound"><button type="button" data-v="0">OFF</button><button type="button" data-v="0.15">小</button><button type="button" data-v="0.3">中</button><button type="button" data-v="0.5">大</button></div></div>
+    <div class="row"><span class="k" id="lbl-bgm">おんがく</span><div class="seg" data-key="bgm" role="radiogroup" aria-labelledby="lbl-bgm"><button type="button" data-v="1">ON</button><button type="button" data-v="0">OFF</button></div></div>
+    <div class="row"><span class="k" id="lbl-warn">けいこくおん</span><div class="seg" data-key="warnSound" role="radiogroup" aria-labelledby="lbl-warn"><button type="button" data-v="1">ON</button><button type="button" data-v="0">OFF</button></div></div>
+    <div class="row"><span class="k" id="lbl-red">動きをへらす</span><div class="seg" data-key="reducedPref" role="radiogroup" aria-labelledby="lbl-red"><button type="button" data-v="auto">自動</button><button type="button" data-v="on">ON</button><button type="button" data-v="off">OFF</button></div></div>
+    <div class="row"><span class="k" id="lbl-sub">字幕</span><div class="seg" data-key="subtitles" role="radiogroup" aria-labelledby="lbl-sub"><button type="button" data-v="0">OFF</button><button type="button" data-v="1">ON</button></div></div>
+  </div>
+  <button type="button" class="btn wide" data-act="reset">タイトルにもどる（リセット）</button>
+</aside>
+
+<aside id="mockpanel" class="panel mockp" hidden aria-labelledby="mock-title">
+  <header class="panel-head"><h2 id="mock-title">MOCK 切替</h2><button type="button" class="x" data-act="close-mock" aria-label="閉じる">×</button></header>
+  <div class="mock-tools">
+    <label><input type="checkbox" data-mock="freeze"> アニメ停止</label>
+    <label><input type="checkbox" data-mock="grid"> 8pxグリッドとセーフエリアを表示</label>
+    <label><input type="checkbox" data-mock="reduced"> 動きをへらす</label>
+    <label>配置 <select data-mock="layout"><option value="auto">自動</option><option value="pc">PC</option><option value="portrait">縦持ち</option><option value="landscape">横持ち</option></select></label>
+    <div class="mock-btns"><button type="button" class="btn small" data-act="step1">1F 進める</button><button type="button" class="btn small" data-act="restart-state">状態を最初から</button></div>
+  </div>
+  <nav id="mock-list" aria-label="画面と状態"></nav>
+  <p class="panel-note mono" id="mock-now"></p>
+</aside>
+
+<div id="manual-layer" hidden><p class="manual-loading" aria-live="polite">取扱説明書を よみこみ中…</p><iframe id="manual-frame" title="取扱説明書"></iframe></div>
+<div id="toasts"></div>
+<div id="live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+<script src="./js/core.js"></script>
+<script src="./js/bgm.js"></script>
+<script src="./js/bgm-tracks.js"></script>
+<script src="./js/sprites.js"></script>
+<script src="./js/sprites-field.js"></script>
+<script src="./js/sprites-bust.js"></script>
+<script src="./js/data.js"></script>
+<script src="./js/title.js"></script>
+<script src="./js/play.js"></script>
+<script src="./js/result.js"></script>
+<script src="./js/shell.js"></script>
+<!-- the real game (game.mjs) and GS.app; deferred module, runs after the classic scripts above -->
+<script type="module" src="./app.mjs"></script>
+</body>
+</html>

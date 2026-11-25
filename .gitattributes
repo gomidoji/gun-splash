@@ -1,0 +1,6 @@
+# Text is stored with LF line endings and checked out with LF, whatever each clone's git settings are.
+* text=auto eol=lf
+
+# Never converted
+*.png binary
+*.woff2 binary
