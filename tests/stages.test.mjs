@@ -11,6 +11,11 @@ for (const stage of STAGES) {
     for (const o of g.obstacles) {
       assert.ok(g.obstacles.some(p => p.x === 1200 - o.x - o.w && p.y === 720 - o.y - o.h && p.w === o.w && p.h === o.h));
     }
+    // each orange actor starts at its blue counterpart's spot rotated 180° (same role, so the same job)
+    for (const a of g.actors.slice(0, 3)) {
+      const b = g.actors[a.id + 3];
+      assert.deepEqual([b.x, b.y, b.role], [1200 - a.x, 720 - a.y, a.role], `spawn of ${b.name}`);
+    }
     for (const target of [...g.actors, ...g.taps, ...g.puddles, ZONE]) {
       assert.ok(g.validPosition(target.x, target.y), `blocked ${target.id}`);
     }

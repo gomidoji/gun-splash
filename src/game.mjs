@@ -194,10 +194,12 @@ export class Game {
     this.taps = (this.stage?.taps || [[225, 510], [975, 210], [370, 144], [830, 576]]).map(([x, y], i) => ({
       id: `tap-${this.puddles[i].id}`, puddleId: this.puddles[i].id, x, y, water: CONFIG.tapCapacity, flow: 0,
     }));
+    // Each orange actor starts where its blue counterpart (same role) would be after the stages' 180° rotation, so
+    // the role that goes for water first (role 1) is as near to its team's water as the other team's on every map.
     this.actors = Array.from({ length: 6 }, (_, id) => {
       const team = id < 3 ? 0 : 1, role = id % 3;
       return { obstacles: this.obstacles, id, team, role, human: id === 0, name: ['YOU', 'アオ', 'ミオ', 'カイ', 'レン', 'ナギ'][id],
-        x: team ? 1092 : 108, y: [360, 302, 418][role], vx: 0, vy: 0, aim: team ? Math.PI : 0,
+        x: team ? 1092 : 108, y: (team ? [360, 418, 302] : [360, 302, 418])[role], vx: 0, vy: 0, aim: team ? Math.PI : 0,
         hp: CONFIG.health, water: CONFIG.initialWater, alive: true, cooldown: 0, hitFlash: 0, hitDirectionX: 0, hitDirectionY: 0,
         firing: false, lastShotWeak: false, lastShotWeapon: 'normal', weapon: 'normal', weaponCooldowns: { normal: 0, splash: 0, long: 0 }, refilling: false, refillAmount: 0, puddleId: null, slowFactor: 1,
         flinch: 0, fireLock: 0, flinchGuard: 0, recoil: 0, recoilAim: 0, charge: 0, chargeAim: 0, tapId: null,
