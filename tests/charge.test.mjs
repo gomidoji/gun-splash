@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Game, CONFIG, longRayEnd } from '../src/game.mjs';
+import { AimAssist } from '../src/aim.mjs';
 import { near } from './helpers.mjs';
 
 const dt = 1 / 60;
@@ -66,6 +67,22 @@ test('charge slows movement, limits rotation, and locks the final 0.2 seconds', 
   near(a.aim, angle);
   step(g, 1, { shoot: true, aim: -Math.PI / 2 });
   near(a.recoilAim, angle);
+});
+test('the player re-aims a charge through the aim assist: the barrel turns toward the input until the lock', () => {
+  const { g, a } = setup(), assist = new AimAssist();
+  // what js/play.js does every frame: the input direction through AimAssist, then the game step
+  const frame = direction => g.update(dt, { shoot: true, aim: assist.resolve(g, a, { direction, shooting: true }, dt) });
+  frame(0);
+  const start = a.chargeAim;
+  for (let i = 0; i < 35; i++) frame(Math.PI / 2);
+  const turned = a.aim - start;
+  assert.ok(turned > CONFIG.longTurnRate * dt * 30 && turned <= CONFIG.longTurnRate * dt * 36 + 1e-8, `turned ${turned}`);
+  const locked = a.aim;
+  for (let i = 0; i < 11; i++) frame(-Math.PI / 2);
+  near(a.aim, locked);
+  frame(-Math.PI / 2);
+  assert.equal(a.stats.shots, 1);
+  near(a.recoilAim, locked);
 });
 test('warning endpoint and instant piercing beam stop at the same wall', () => {
   const { g, a } = setup();

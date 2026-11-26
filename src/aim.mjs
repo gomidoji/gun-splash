@@ -1,9 +1,14 @@
 import { shotRange, hasWeaponWater } from './game.mjs';
 
 // Correction is always measured from the user's input, never the previous assisted aim.
+// While the long barrel charges, the user's input aims (game.mjs turns the barrel toward it at longTurnRate and
+// locks it for the last longLockDuration). The correction found when the charge began is kept until the input moves
+// (CHARGE_STEER); from then on the input aims as it is.
+const CHARGE_STEER = Math.PI / 360;
+const turn = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 export class AimAssist {
   constructor() { this.reset(); }
-  reset() { this.base = null; this.offset = 0; this.target = null; }
+  reset() { this.base = null; this.offset = 0; this.offsetBase = null; this.target = null; }
   visibleTarget(game, actor, shooting) {
     if (!shooting || game.state !== 'playing' || !actor.alive || actor.tapId || actor.recoil > 0 || actor.fireLock > 0 || actor.charge > 0) return null;
     const target = game.actors.find(b => b.id === this.target && b.alive && b.team !== actor.team);
@@ -12,7 +17,11 @@ export class AimAssist {
   resolve(game, actor, { direction, shooting, cursor = null, scale = 1 }, dt) {
     if (direction != null) this.base = direction;
     this.base ??= actor.aim;
-    if (actor.weapon === 'long' && actor.charge > 0) { this.target = null; this.offset = 0; return actor.chargeAim; }
+    if (actor.weapon === 'long' && actor.charge > 0) {
+      this.target = null;
+      if (this.offsetBase == null || Math.abs(turn(this.base, this.offsetBase)) > CHARGE_STEER) this.offset = 0;
+      return this.base + this.offset;
+    }
     if (!shooting || !actor.alive || actor.tapId || actor.recoil > 0 || actor.fireLock > 0) {
       this.offset = 0; this.target = null; return this.base;
     }
@@ -30,6 +39,7 @@ export class AimAssist {
     const long = actor.weapon === 'long' && hasWeaponWater(actor), limit = (long ? 3 : 6) * Math.PI / 180;
     const wanted = Math.max(-limit, Math.min(limit, chosen.delta * (long ? .35 : .6)));
     this.offset = long ? wanted : this.offset + Math.max(-dt * .9, Math.min(dt * .9, wanted - this.offset));
+    this.offsetBase = this.base;
     return this.base + this.offset;
   }
 }

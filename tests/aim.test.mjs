@@ -39,14 +39,26 @@ test('PC cursor proximity and release use manual aim', () => {
   assert.equal(assist.resolve(g, a, { direction: .1, shooting: false }, 1 / 60), .1);
 });
 
-test('long barrel holds initial assisted angle during charge even if enemy or input moves', () => {
+test('long barrel keeps the assisted angle of the charge start while the input holds still, even if the enemy moves', () => {
   const { a, b, g, assist } = fixture();
   a.weapon = 'long';
   a.chargeAim = assist.resolve(g, a, { direction: 0, shooting: true }, 1 / 60);
   assert.ok(a.chargeAim > 0 && a.chargeAim <= Math.PI / 60);
   a.charge = .1;
   b.y = -30;
-  assert.equal(assist.resolve(g, a, { direction: -.2, shooting: true }, 1 / 60), a.chargeAim);
+  assert.equal(assist.resolve(g, a, { direction: 0, shooting: true }, 1 / 60), a.chargeAim);
+  assert.equal(assist.resolve(g, a, { direction: null, shooting: true }, 1 / 60), a.chargeAim, 'stick let go');
+});
+
+test('long barrel follows the input while charging, without assistance once the input moves', () => {
+  const { a, g, assist } = fixture();
+  a.weapon = 'long';
+  a.chargeAim = assist.resolve(g, a, { direction: 0, shooting: true }, 1 / 60);
+  a.charge = .1;
+  assert.equal(assist.resolve(g, a, { direction: -.2, shooting: true }, 1 / 60), -.2);
+  // back where it started: still the plain input (the correction is not picked up again during this charge)
+  assert.equal(assist.resolve(g, a, { direction: 0, shooting: true }, 1 / 60), 0);
+  assert.equal(assist.visibleTarget(g, a, true), null);
 });
 
 test('stable candidate preference, weak range and reset', () => {
