@@ -396,6 +396,8 @@
   // frames) comes in high over the town, turned toward the courtyard; follows the street down; swings left as it
   // reaches the courtyard; and stops at its south-west corner turned toward the zone, which then sits in the middle of
   // the picture for the last caption.
+  // Each caption has its picture: the rain thins out and stops (1), glints on the courtyard's puddles (2), the
+  // puddles shrink step by step (3), the zone's rim blinks gold and the two teams drop in on either side of it (4).
   // haze: depths past which the floor is sky5 / sky5 and sky4 rows / sky4 on every other row
   const OP = { len: 480, cap: 120, move: 420, horizon: 72, focal: 128, scale: 1 / 2, haze: [4600, 3800, 3000] };
   const CAM_KEYS = [
@@ -417,32 +419,41 @@
   }
 
   // The floor is the real tutorial stage (game.mjs via data.js) at half size, its walls flat on the ground as on the
-  // map, with its puddles full, the zone and the pumps; wet marks the open water (water / waterDk), which mirrors the sky. Cached per stage object, so a frame
-  // drawn before the data exists is never kept.
-  let floor = null;
-  function buildFloor() {
+  // map, with its puddles at one level (all four alike), the zone and the pumps; wet marks the open water (water /
+  // waterDk), which mirrors the sky. One floor per puddle level, cached per stage object, so a frame drawn before the
+  // data exists is never kept.
+  let floors = null;   // { src: stage, ring, by: { [level]: floor } }
+  function buildFloor(level) {
     const st = GS.stage('tutorial');
-    if (floor && floor.src === st) return floor;
+    if (!floors || floors.src !== st) floors = { src: st, ring: null, by: {} };
+    if (floors.by[level]) return floors.by[level];
     const s = OP.scale, map = GS.mapCanvas('tutorial', s);
     const cv = GS.makeCanvas(map.width, map.height), c = cv.getContext('2d', { willReadFrequently: true });
     c.imageSmoothingEnabled = false;
     c.drawImage(map, 0, 0);
-    GS.drawPuddles(c, 'tutorial', [5, 5, 5, 5], 0, 0, s, 0);
+    GS.drawPuddles(c, 'tutorial', [level, level, level, level], 0, 0, s, 0);
     GS.drawZone(c, 0, 0, s, 'neutral', 0);
     GS.drawPumps(c, 'tutorial', null, 0, 0, s, 0);
-    const d = c.getImageData(0, 0, cv.width, cv.height).data, wet = new Uint8Array(cv.width * cv.height);
-    const open = ['water', 'waterDk'].map(n => GS.rgb(P[n]));
-    for (let i = 0; i < wet.length; i++) if (open.some(w => w[0] === d[i * 4] && w[1] === d[i * 4 + 1] && w[2] === d[i * 4 + 2])) wet[i] = 1;
+    const n = cv.width * cv.height, d32 = new Uint32Array(c.getImageData(0, 0, cv.width, cv.height).data.buffer), wet = new Uint8Array(n);
+    const [w0, w1] = ['water', 'waterDk'].map(k => pack(GS.rgb(P[k])));
+    for (let i = 0; i < n; i++) if (d32[i] === w0 || d32[i] === w1) wet[i] = 1;
     // the zone's rim (a 6 px band inside its edge), lit for the last caption
-    const Z = GS.ZONE, ring = new Uint8Array(wet.length);
-    if (Z) for (let j = 0; j < cv.height; j++) for (let i = 0; i < cv.width; i++) {
-      const r = Math.hypot((i + 0.5) / s - Z.x, (j + 0.5) / s - Z.y);
-      if (r <= Z.r && r > Z.r - 6) ring[j * cv.width + i] = 1;
+    if (!floors.ring) {
+      const Z = GS.ZONE, ring = new Uint8Array(n);
+      if (Z) for (let j = 0; j < cv.height; j++) for (let i = 0; i < cv.width; i++) {
+        const r = Math.hypot((i + 0.5) / s - Z.x, (j + 0.5) / s - Z.y);
+        if (r <= Z.r && r > Z.r - 6) ring[j * cv.width + i] = 1;
+      }
+      floors.ring = ring;
     }
-    const fl = { src: st, w: cv.width, h: cv.height, d32: new Uint32Array(d.buffer), wet, ring };
-    if (st) floor = fl;
+    const fl = { w: cv.width, h: cv.height, d32, wet, ring: floors.ring };
+    if (st) floors.by[level] = fl;
     return fl;
   }
+  // でも 水には かぎりが ある。: the puddles stay full until 12f into caption 3, then go one level lower every 24f down
+  // to 2 (the play screen's 6-step images), and stay there
+  const SHRINK = { from: 2 * OP.cap + 12, every: 24, low: 2 };
+  const poolLevelAt = t => (t < SHRINK.from ? 5 : Math.max(SHRINK.low, 4 - F((t - SHRINK.from) / SHRINK.every)));
   // Rows 0..72: the sky, the sun (x200) and the title's town skyline standing on the horizon, as one 256 px wide
   // image that repeats sideways; the yaw moves it by shift (the sun's offset from x200). Its pixels are also what
   // the puddles mirror.
@@ -511,7 +522,9 @@
   }
   let m7img = null, m7out = null;
   function drawFlyover(c, t) {
-    const cam = camAt(t), col = opColours(), fl = buildFloor(), fd = fl.d32, wetAt = fl.wet, fw = fl.w, fh = fl.h, s = OP.scale;
+    const cam = camAt(t), col = opColours(), fl = buildFloor(poolLevelAt(t)), fd = fl.d32, wetAt = fl.wet, fw = fl.w, fh = fl.h, s = OP.scale;
+    // (normally built during the boot screen, see prepareOpening) the lower floors, one per frame during caption 2
+    if (t >= OP.cap && t < 2 * OP.cap) for (let lv = 4; lv >= SHRINK.low; lv--) if (!floors.by[lv]) { buildFloor(lv); break; }
     const shift = R(OP.focal * Math.tan(SUN_AZ - cam.yaw)) - 72, sky = openingSky(), sd = sky.d32, x0 = shift & 255;
     c.drawImage(sky.cv, x0, 0);
     c.drawImage(sky.cv, x0 - 256, 0);
@@ -524,10 +537,10 @@
       // haze toward the horizon: rows of sky5, then sky5 / sky4, then sky4 on every other row
       const haze = depth > h0 ? col.fog5 : depth > h1 ? (y & 1 ? col.fog4 : col.fog5) : depth > h2 && !(y & 1) ? col.fog4 : 0;
       if (haze) { out.fill(haze, row, row + 256); continue; }
-      // open water mirrors the sky row as far above the horizon as it is below (the sky's first row past the top):
-      // seen at a low angle (far) on every other row, nearer on every 3rd, close by on every 4th, so nearby water
-      // keeps its own colour; the rows move every 8f
-      const ph = y + wave, mirror = depth > 700 ? ph & 1 : depth > 350 ? ph % 3 === 0 : (ph & 3) === 0;
+      // open water seen at a low angle (farther than 700) mirrors the sky row as far above the horizon as it is below,
+      // on every other row (moving every 8f); nearer water, looked down on, keeps its own colours (mirrored there, it
+      // would show the sky's dark top as lines across it)
+      const ph = y + wave, mirror = depth > 700 && ph & 1;
       const m = Math.max(0, 2 * OP.horizon - y) * 256, dX = cos * k, dY = sin * k;
       let X = cam.x + sin * depth - 128 * dX, Y = cam.y - cos * depth - 128 * dY;
       for (let x = 0; x < 256; x++, X += dX, Y += dY) {
@@ -539,9 +552,90 @@
       }
     }
     c.putImageData(m7img, 0, 73);
+    return { cam, fl };
+  }
+  // a world point on the ground -> [screen x, screen y, depth], or null when it is (nearly) behind the camera
+  function opProject(cam, X, Y) {
+    const sin = Math.sin(cam.yaw), cos = Math.cos(cam.yaw), dx = X - cam.x, dy = Y - cam.y, depth = dx * sin - dy * cos;
+    return depth < 16 ? null : [128 + ((dx * cos + dy * sin) * OP.focal) / depth, OP.horizon + (cam.h * OP.focal) / depth, depth];
+  }
+
+  // ながい 雨が やんだ。: slanted streaks as on the losing result screen, falling 8 px down and 4 px left every 2f. Drop
+  // i stops between 20f and 60f, finishing the fall it is in (60f a screen), so the last ones are gone by 120f. With
+  // reduced motion the streaks stand still and go out one by one.
+  const RAIN = { n: 32, stop: 20, spread: 40 };
+  function drawRain(c, t) {
+    const s = reduced() ? 0 : F(t / 2);
+    for (let i = 0; i < RAIN.n; i++) {
+      const stop = RAIN.stop + (i * RAIN.spread) / RAIN.n, x0 = F(hash2(i, 5) * 272), y0 = F(hash2(i, 9) * 240);
+      const fall = y0 + s * 8, lap = F(fall / 240);
+      const began = reduced() ? t : lap ? Math.ceil((lap * 240 - y0) / 8) * 2 : 0;
+      if (began >= stop) continue;
+      const y = fall - lap * 240 - 8, x = ((((x0 - s * 4) % 272) + 272) % 272) - 8;
+      GS.line(c, x + 4, y, x, y + 7, 'rain');
+    }
+  }
+
+  // まちに 水たまりが のこった。: glints on the courtyard's puddles (two points in each, given in pool radii), each one
+  // 4 steps of 3f (dot, small cross, big cross, small cross) once every 24f at its own phase; only on open water and
+  // nearer than GLINT_FAR. Reduced motion: the small cross, still.
+  const GLINTS = [[-0.4, -0.15], [0.3, 0.3]], GLINT_FAR = 1600;
+  function drawGlints(c, cam, fl, t) {
+    const st = GS.stage('tutorial'); if (!st) return;
+    st.pools.forEach((p, i) => GLINTS.forEach(([u, v], j) => {
+      const k = i * GLINTS.length + j, a = (t + k * 11) % 24;
+      if (!reduced() && a >= 12) return;
+      const ca = Math.cos(p.angle || 0), sa = Math.sin(p.angle || 0);
+      const X = p.x + u * p.rx * ca - v * p.ry * sa, Y = p.y + u * p.rx * sa + v * p.ry * ca;
+      const q = F(Y * OP.scale) * fl.w + F(X * OP.scale), pr = opProject(cam, X, Y);
+      if (!fl.wet[q] || !pr || pr[2] > GLINT_FAR || pr[1] < 76) return;
+      const x = R(pr[0]), y = R(pr[1]), f = reduced() ? 1 : F(a / 3);
+      if (f === 2) { GS.rect(c, x - 2, y, 5, 1, 'waterHi'); GS.rect(c, x, y - 2, 1, 5, 'waterHi'); GS.rect(c, x - 1, y, 3, 1, 'white'); GS.rect(c, x, y - 1, 1, 3, 'white'); }
+      else if (f !== 0) { GS.rect(c, x - 1, y, 3, 1, 'waterHi'); GS.rect(c, x, y - 1, 1, 3, 'waterHi'); }
+      GS.rect(c, x, y, 1, 1, 'white');
+    }));
+  }
+
+  // 3たい3!: the teams face off across the zone, blue on the camera's side (TEAM.lead / TEAM.back short of the zone
+  // along the last camera key's view, the two behind TEAM.side apart) and orange rotated 180 degrees about the zone, as
+  // on the stages; clear of the walls and outside the zone. Drawn at 1x (the play screen's size about the zone), far
+  // to near, aiming at the other team's leader. Each drops in at TEAM.at[i]f into the caption: a 2f flash and a hop
+  // (reduced motion: neither).
+  const TEAM = { lead: 100, back: 130, side: 100, at: [12, 26, 26, 18, 32, 32] };
+  const HOP = [0, -3, -5, -6, -6, -5, -3, -1];
+  let teamSpots = null;
+  function spots() {
+    if (teamSpots) return teamSpots;
+    const Z = GS.ZONE || { x: 600, y: 360 }, k = CAM_KEYS[CAM_KEYS.length - 1], d = Math.hypot(Z.x - k.x, Z.y - k.y);
+    const ux = (Z.x - k.x) / d, uy = (Z.y - k.y) / d;
+    const blue = [[TEAM.lead, 0], [TEAM.back, TEAM.side], [TEAM.back, -TEAM.side]]
+      .map(([a, b]) => ({ x: Z.x - ux * a - uy * b, y: Z.y - uy * a + ux * b, team: 0 }));
+    teamSpots = blue.concat(blue.map(o => ({ x: 2 * Z.x - o.x, y: 2 * Z.y - o.y, team: 1 })));
+    return teamSpots;
+  }
+  function drawTeams(c, cam, t) {
+    const all = spots().map(o => opProject(cam, o.x, o.y)), list = [];
+    spots().forEach((o, i) => { const a = t - 3 * OP.cap - TEAM.at[i]; if (a >= 0 && all[i]) list.push({ o, a, p: all[i] }); });
+    list.sort((A, B) => B.p[2] - A.p[2]);
+    for (const { o, a, p } of list) {
+      const lead = all[o.team ? 0 : 3], dx = lead ? lead[0] - p[0] : 0, dy = lead ? lead[1] - p[1] : 0;
+      const hop = reduced() ? 0 : HOP[a] || 0;
+      GS.actor(c, p[0], p[1] - 7 + hop, { team: o.team, pose: 'field', aimDir16: GS.dir16(dx, dy), tank: 7, frame: 0,
+        faceLeft: Math.abs(dx) < 1 ? o.team === 1 : dx < 0, flash: !reduced() && a < 2 });
+    }
+  }
+
+  // The boot screen's first frames (still dark) build the opening's sky and its four floors ahead, one per frame (each
+  // can take tens of ms), so the flyover never stops for them.
+  function prepareOpening(k) {
+    if (k === 0) { opColours(); openingSky(); }
+    else buildFloor([5, 4, 3, 2][k - 1]);
   }
   function drawOpening(L, t) {
-    drawFlyover(L.bg1, t);
+    const { cam, fl } = drawFlyover(L.bg1, t);
+    if (t < OP.cap) drawRain(L.obj, t);
+    else if (t < 2 * OP.cap) drawGlints(L.obj, cam, fl, t);
+    else if (t >= 3 * OP.cap) drawTeams(L.obj, cam, t);
     const open = GS.step(t, 0, 6);
     GS.win(L.hud, 8, 176, 240, 32, { fill: 'half', open });
     if (open >= 1) GS.text16(L.hud, CAPTIONS[clamp(F(t / OP.cap), 0, 3)], 128, 184, { align: 'center' });
@@ -827,6 +921,7 @@
             if (t < 46) { goTitleComplete(); return; } // still dark: go straight to the title (fades in 16f)
             fadeThen(16, goTitleComplete); return;
           }
+          if (t >= 1 && t <= 5) prepareOpening(t - 1);
           if (t === 30) GS.transition('fadeIn', { frames: 16 });
           if (t === 60) GS.sfx('drop');
           if (t === 166 && !S.busy) fadeThen(16, () => GS.go('title', 'opening'));
