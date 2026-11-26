@@ -59,7 +59,7 @@ const app = {
   game,                         // the Game instance (screens only read it)
   rules,                        // game.mjs module namespace: CONFIG, STAGES, WEAPONS, ZONE, OBSTACLES, puddleOutline, ...
   aimAssist,                    // aim.mjs AimAssist for touch / stick aiming (play.js passes scale = CSS px per world unit)
-  selectedStage: 'tutorial',    // 'tutorial' | 'waterside' | 'alleys' | 'reservoir'
+  selectedStage: 'tutorial',    // 'tutorial' | 'lanes' | 'alleys' | 'maze'
   session: { record: [] },      // results of this run: 'win' | 'lose' | 'draw' (not saved)
   round: 0,                     // ++ on every reset of the match (see resetGame)
   recorded: false,              // session.record already has this round

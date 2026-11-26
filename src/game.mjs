@@ -55,18 +55,25 @@ export const STAGES = [
   {id:'tutorial', name:'はじまりの中庭', level:'入門', difficulty:0, description:'水辺を通って中央へ。短い壁と広い道の、穏やかな中庭。',
     obstacles:OBSTACLES.map(o => o.w === 38 ? {...o,y:o.x < 600 ? 200 : 435} : o),
     pools:PUDDLES.map((p,i)=>({...p, y:i<2?360:p.y})), taps:[[225,470],[975,250],[370,144],[830,576]]},
-  {id:'waterside', name:'ふたつの水辺', level:'初級', difficulty:1, description:'左右の大水場で準備し、中央の小水場へ前進。補給線を押し上げよう。',
-    obstacles:mirrored([{x:390,y:338,w:110,h:44},{x:340,y:175,w:100,h:38},{x:480,y:90,w:140,h:32}]),
-    pools:placePools([[600,205],[600,515],[235,360,Math.PI/2],[965,360,Math.PI*1.5]], [2.11, 6.33]),
-    taps:[[510,270],[690,450],[120,210],[1080,510]]},
+  // Two long walls split the field into three lanes: the zone holds the middle one, the water lies only in the top and
+  // bottom lanes (each lane has the big pool of one team and the small pool of the other).
+  {id:'lanes', name:'みっつの通り道', level:'初級', difficulty:1, description:'長い壁で分かれた三本の通り。水は上下の通りだけ。補給して中央の陣地へ。',
+    obstacles:mirrored([{x:280,y:215,w:250,h:30},{x:280,y:475,w:250,h:30},{x:440,y:330,w:30,h:60}]),
+    pools:placePools([[330,600,0],[870,120,Math.PI],[400,120,0],[800,600,Math.PI]], [3.2, 1.4], true),
+    taps:[[190,600],[1010,120],[215,120],[985,600]]},
   {id:'alleys', name:'斜めの水路', level:'中級', difficulty:2, description:'斜めに連なる水場と曲がり角。水場を渡り、別の角度から攻め込もう。',
     obstacles:mirrored([{x:315,y:80,w:38,h:100},{x:335,y:335,w:120,h:38},{x:535,y:140,w:38,h:100},{x:535,y:365,w:40,h:45},{x:165,y:300,w:110,h:38}]),
     pools:placePools([[235,165,.5],[965,555,Math.PI+.5],[465,280,.5],[735,440,Math.PI+.5]], [5.062, 7.338], true),
     taps:[[110,165],[1090,555],[465,145],[735,575]]},
-  {id:'reservoir', name:'中央貯水区', level:'上級', difficulty:3, description:'水の大半は中央の上下に。射線を切り、陣地防衛と補給を交代しよう。',
-    obstacles:mirrored([{x:350,y:120,w:38,h:140},{x:750,y:110,w:100,h:35},{x:400,y:300,w:100,h:35},{x:540,y:70,w:120,h:28}]),
-    pools:placePools([[230,360],[970,360],[600,185,0],[600,535,Math.PI]], [5.53, 9.75], true),
-    taps:[[145,440],[1055,280],[440,185],[760,535]]},
+  // Every pool lies in a dead end with one way in: the big pools at the back of a corner alley whose pump stands
+  // outside its mouth (a wall keeps the far half from seeing into the alley, not the pump), the small ones in a
+  // pocket beside each spawn. The zone sits in a pinwheel of walls with two corner openings, and no straight lane
+  // crosses the field.
+  {id:'maze', name:'いきどまりの路地', level:'上級', difficulty:3, description:'水場はどれも行き止まりの奥。補給に入れば逃げ道なし。',
+    obstacles:mirrored([{x:490,y:250,w:150,h:28},{x:490,y:278,w:28,h:100},{x:30,y:200,w:390,h:28},{x:420,y:30,w:28,h:95},
+      {x:300,y:470,w:28,h:220},{x:30,y:470,w:170,h:28},{x:340,y:290,w:28,h:120},{x:590,y:130,w:28,h:120}]),
+    pools:placePools([[165,595,0],[1035,125,Math.PI],[255,112,0],[945,608,Math.PI]], [2.4, 4.1], true),
+    taps:[[275,515],[925,205],[470,162],[730,558]]},
 ];
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const hasWaterShot = a => a.water >= CONFIG.shotCost - 1e-8;
@@ -368,8 +375,7 @@ export class Game {
       const point = { x: p.x, y: p.y }, route = paths.to(point);
       const assigned = allies.filter(b => b.ai.baseGoal?.sourceId === p.id || b.ai.goal?.id === p.id).length;
       const waterBenefit = Math.min(p.water, Math.max(0, 65 - a.water)) * 3;
-      const central = this.stage.id === 'reservoir' && distance(p, ZONE) < 210 ? 110 : 0;
-      return { p, route, cost: route.cost + distance(p, zoneGoal) * .7 + assigned * 240 - waterBenefit - central
+      return { p, route, cost: route.cost + distance(p, zoneGoal) * .7 + assigned * 240 - waterBenefit
         + this.terrainRisk(p, threats) * 180 };
     }).filter(o => o.route.length + distance(o.p, zoneGoal) < direct.length + 300
       && this.terrainRisk(o.p, threats) < .9)

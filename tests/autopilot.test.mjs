@@ -18,7 +18,7 @@ test('autopilot is off by default: the player only follows the given input', () 
   assert.equal(you.human, true);
 });
 test('autopilot unset or false leaves every rule and bot decision unchanged', () => {
-  const a = new Game(11, 'waterside'), b = new Game(11, 'waterside');
+  const a = new Game(11, 'lanes'), b = new Game(11, 'lanes');
   b.autopilot = false;
   a.start();
   b.start();

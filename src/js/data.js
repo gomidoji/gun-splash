@@ -27,10 +27,13 @@
       descRom: ['水辺を とおって 中央へ。', 'みじかい かべと ひろい道', 'てきは はじめの 4秒 うたない'],
       ground: ['g1a', 'g1b'],
     },
-    waterside: {
-      nameRom: ['ふたつの', '水辺'], levelRom: 'しょきゅう',
-      descRom: ['左右の 大きな水辺で じゅんび', '中央の 小さな水辺へ すすめ!', 'ほきゅうせんを おしあげよう'],
+    lanes: {
+      nameRom: ['みっつの', '通り道'], levelRom: 'しょきゅう',
+      descRom: ['水は 上と下の 通りだけ', 'くんだら 中央の 陣地へ', 'かべの すきまから せめこめ!'],
       ground: ['g2a', 'g2b'],
+      // The pools lie in the corners of the top and bottom lanes, so they are named by corner (the compass rule
+      // would call the bottom-left one 西).
+      poolNames: { 'home-blue': '南西', 'home-orange': '北東', north: '北西', south: '南東' },
     },
     alleys: {
       nameRom: ['斜めの', '水路'], levelRom: 'ちゅうきゅう',
@@ -41,18 +44,20 @@
       // they are on the map instead (game.mjs pool id -> name): the corner pools and the two next to the zone.
       poolNames: { 'home-blue': '北西', 'home-orange': '南東', north: '中央西', south: '中央東' },
     },
-    reservoir: {
-      nameRom: ['中央', '貯水区'], levelRom: 'じょうきゅう',
-      descRom: ['水の 大半は 中央の 上下に', 'しゃせんを きって 陣地の', 'まもりと ほきゅうを 交代!'],
+    maze: {
+      nameRom: ['いきどまりの', '路地'], levelRom: 'じょうきゅう',
+      descRom: ['水は どれも 路地の おく', 'くみに いけば にげ道なし!', 'かべを たてに 陣地を とれ'],
       ground: ['g4a', 'g4b'],
+      // Each pool lies in a dead end in one corner; two of them are west of the zone, so named by corner.
+      poolNames: { 'home-blue': '南西', 'home-orange': '北東', north: '北西', south: '南東' },
     },
   };
 
   // ---- pool names from coordinates (seen from the zone centre) ------------
   // p.dir is shown as p.dir + 'の 水たまりが 枯れた' (play.js; J16, <= 224 px: a 3-glyph name gives 208 px).
   // Each stage has 4 pools; by default the 4 compass names are assigned by the permutation that best matches
-  // the actual direction (sum of cosines). The game.mjs pool order / label is NOT used (e.g. on stage 2
-  // "home-blue" keeps the label 西の水たまり from PUDDLES but lies north of the zone).
+  // the actual direction (sum of cosines). The game.mjs pool order / label is NOT used (placePools keeps the PUDDLES
+  // labels, so "home-blue" is called 西の水たまり wherever a stage puts it).
   // That only works while every pool has its own nearest compass direction. When two pools lie in the same
   // direction, the permutation has to give one of them a wrong name, so such a stage carries its own names in
   // ROM_TEXT[id].poolNames (game.mjs pool id -> name, kana + the 44 kanji). Without them it warns.

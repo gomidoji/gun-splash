@@ -8,8 +8,8 @@ function supply(g, a, threats = [], allies = []) {
   return g.supplyPlan(a, threats, allies, g.terrainPaths(a, threats, allies));
 }
 test('opening supply adapts to each map and enters the real shoreline on a safe side', () => {
-  for (const [id, source] of [['tutorial', 'home-blue'], ['waterside', 'north'], ['alleys', 'home-blue'],
-    ['reservoir', 'home-blue']]) {
+  for (const [id, source] of [['tutorial', 'home-blue'], ['lanes', 'north'], ['alleys', 'home-blue'],
+    ['maze', 'home-blue']]) {
     const g = new Game(1, id), a = g.actors[1];
     a.water = 10;
     const plan = supply(g, a);
@@ -24,17 +24,17 @@ test('opening supply adapts to each map and enters the real shoreline on a safe 
   }
 });
 test('visible threat and exhausted supplies change the source instead of forcing the nearest water', () => {
-  const g = new Game(1, 'reservoir'), a = g.actors[1];
-  Object.assign(a, { x: 230, y: 360, water: 10 });
+  const g = new Game(1, 'maze'), a = g.actors[1];
+  Object.assign(a, { x: 250, y: 440, water: 10 });
   assert.equal(supply(g, a).source.id, 'home-blue');
-  const threatened = supply(g, a, [{ id: 9, x: 230, y: 360 }]);
+  const threatened = supply(g, a, [{ id: 9, x: 250, y: 440 }]);
   assert.notEqual(threatened?.source.id, 'home-blue');
   g.puddles[0].water = 0;
   g.taps[0].water = 0;
   assert.notEqual(supply(g, a).source.id, 'home-blue');
 });
 test('water demand reservations spread suppliers and human pump work is not duplicated', () => {
-  const g = new Game(1, 'waterside'), a = g.actors[1], b = g.actors[2];
+  const g = new Game(1, 'lanes'), a = g.actors[1], b = g.actors[2];
   a.water = 10;
   const first = supply(g, a);
   first.source.water = 25;
@@ -61,7 +61,7 @@ test('known fire lanes cause a detour whose every segment remains body-passable'
   }
 });
 test('advanced teams share expiring sightings rather than tracking hidden positions', () => {
-  const g = new Game(1, 'reservoir'), a = g.actors[1], b = g.actors[2], enemy = g.actors[3];
+  const g = new Game(1, 'maze'), a = g.actors[1], b = g.actors[2], enemy = g.actors[3];
   const observed = { x: enemy.x, y: enemy.y };
   g.knownThreats(a, [enemy], []);
   enemy.x = 100;
@@ -69,24 +69,24 @@ test('advanced teams share expiring sightings rather than tracking hidden positi
   assert.equal(shared[0].x, observed.x);
   g.time += 2.1;
   assert.deepEqual(g.knownThreats(b, [], []), []);
-  const easy = new Game(1, 'waterside');
+  const easy = new Game(1, 'lanes');
   easy.knownThreats(easy.actors[1], [easy.actors[3]], []);
   assert.deepEqual(easy.knownThreats(easy.actors[2], [], []), []);
 });
-test('support guards a central supplier from a separate position while anchor stays in the zone', () => {
-  const g = new Game(1, 'reservoir'), a = g.actors[1], worker = g.actors[2];
-  Object.assign(a, { x: 500, y: 260, water: 100 });
-  worker.ai.refill = true;
-  worker.ai.goal = g.puddles[2];
-  worker.water = 10;
+test('support guards a teammate at a pump from a separate position while anchor stays in the zone', () => {
+  const g = new Game(1, 'maze'), a = g.actors[1], worker = g.actors[2], t = g.taps[2];
+  Object.assign(a, { x: 560, y: 90, water: 100 });
+  Object.assign(worker, { x: t.x, y: t.y, water: 10 });
+  worker.tapId = t.id;
   const paths = g.terrainPaths(a, [], [worker]);
   const goal = g.terrainObjective(a, [], [worker], g.actors[0], paths, { id: 'zone', ...ZONE });
   assert.equal(goal.id, 'escort');
-  assert.ok(distance(goal, worker.ai.goal) > 65);
+  assert.equal(goal.sourceId, t.id);
+  assert.ok(distance(goal, t) > 65);
   assert.equal(g.terrainObjective(a, [], [worker], a, paths, { id: 'zone', ...ZONE }).id, 'zone');
 });
 test('approach plans are bounded, retain routes between decisions, and yield to urgent capture', () => {
-  const g = new Game(1, 'waterside'), a = g.actors[1];
+  const g = new Game(1, 'lanes'), a = g.actors[1];
   for (const b of g.actors.filter(b => b.team !== a.team)) b.alive = false;
   g.start();
   g.botControl(a, dt);

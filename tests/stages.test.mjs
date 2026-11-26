@@ -72,10 +72,10 @@ for (const stage of STAGES) {
   });
 }
 test('multiple games keep independent walls, navigation and ray endpoints after stage switches', () => {
-  const a = new Game(1, 'tutorial'), b = new Game(1, 'waterside');
+  const a = new Game(1, 'tutorial'), b = new Game(1, 'lanes');
   const p = { x: 250, y: 250, obstacles: a.obstacles };
   const before = longRayEnd(p, 0);
-  b.reset(2, 'reservoir');
+  b.reset(2, 'maze');
   assert.deepEqual(longRayEnd(p, 0), before);
   assert.notDeepEqual(a.obstacles, b.obstacles);
   assert.equal(a.stage.id, 'tutorial');
@@ -101,18 +101,38 @@ test('stage difficulty changes tactics and reaction without changing actor or we
     assert.ok(g.actors.every(a => a.hp === 100 && a.water === 50));
   }
 });
-test('terrain identities separate safe supply, diagonal circulation and contested central supply', () => {
-  const easy = new Game(1, 'waterside'), medium = new Game(1, 'alleys'), hard = new Game(1, 'reservoir');
-  assert.ok(easy.puddles[2].x < 300 && easy.puddles[3].x > 900);
-  assert.ok(easy.puddles.slice(0, 2).every(p => p.x === 600));
+// Directions (of 16) in which a 260 px line from p runs clear of walls and stays inside the arena.
+const openDirections = (g, p) => Array.from({ length: 16 }, (_, k) => {
+  const a = k / 16 * Math.PI * 2, e = { x: p.x + Math.cos(a) * 260, y: p.y + Math.sin(a) * 260 };
+  return g.clearPath(p, e) && e.x > 30 && e.x < 1170 && e.y > 30 && e.y < 690;
+}).filter(Boolean).length;
+test('terrain identities separate three lanes, diagonal circulation and dead-end supply', () => {
+  const easy = new Game(1, 'lanes'), medium = new Game(1, 'alleys'), hard = new Game(1, 'maze');
+  // lanes: long walls split the field, the middle lane holds the zone and no water; each side lane has one big and
+  // one small pool
+  assert.equal(easy.obstacles.filter(o => o.w >= 240 && o.h <= 40).length, 4);
+  for (const p of easy.puddles) {
+    assert.ok(Math.abs(p.y - ZONE.y) > 200, `${p.id} lies in a side lane`);
+    assert.ok(!easy.clearPath(p, ZONE), `${p.id} is walled off from the middle lane`);
+  }
+  for (const side of [p => p.y < ZONE.y, p => p.y > ZONE.y]) {
+    assert.deepEqual(easy.puddles.filter(side).map(p => p.capacity).sort((a, b) => a - b), [100, 250]);
+  }
   const diagonal = [medium.puddles[0], medium.puddles[2], medium.puddles[3], medium.puddles[1]];
   for (let i = 1; i < diagonal.length; i++) {
     assert.ok(diagonal[i].x > diagonal[i - 1].x && diagonal[i].y > diagonal[i - 1].y);
   }
-  for (const p of hard.puddles.slice(2)) {
-    assert.equal(p.x, ZONE.x);
-    assert.ok(distance(p, ZONE) < 200);
-    assert.ok(puddleOutline({ ...p, water: p.capacity }).every(v => distance(v, ZONE) > ZONE.r + CONFIG.radius),
-      'capture and large-pool refill must be separate');
+  // maze: every pool sits in a dead end, out of sight of the zone and both spawns, and no spawn row sees the other
+  // side
+  for (const p of hard.puddles) {
+    assert.ok(openDirections(hard, p) <= 2, `${p.id} is in a dead end`);
+    for (const from of [ZONE, { x: 108, y: 360 }, { x: 1092, y: 360 }]) assert.ok(!hard.clearPath(p, from), `${p.id} hidden`);
+  }
+  for (const p of easy.puddles) assert.ok(openDirections(easy, p) > 2, `${p.id} (lanes) is open`);
+  for (const y of [302, 360, 418]) assert.ok(!hard.clearPath({ x: 108, y }, { x: 1092, y }), `row ${y} is blocked`);
+  // the big pools' pumps stand outside the dead end, in sight of its mouth only
+  for (const p of hard.puddles.filter(p => p.capacity === 250)) {
+    const t = hard.taps.find(t => t.puddleId === p.id);
+    assert.ok(distance(t, p) > 200 && openDirections(hard, t) > openDirections(hard, p));
   }
 });
