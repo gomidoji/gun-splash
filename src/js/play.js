@@ -24,6 +24,7 @@
   const WEAPON_LABEL = { normal: 'NORMAL', splash: 'SPLASH', long: 'LONG' };   // HUD / pause weapon names
   const COST = { normal: 5, splash: 15, long: 25 };
   const RANGE = { normal: 120, splash: 40, long: 466, weak: 60 };   // map px (world / 3)
+  const SPLASH = { pellets: 5, spread: 0.56 };               // the splash volley (spread in rad), as game.mjs WEAPONS
   const LONG_WAIT0 = 564;                                    // 9.4 s left on YOU's long barrel
   // mock states that show the running field scene; pause and end-* have their own handlers
   const FIELD_STATES = ['countdown', 'normal', 'contest', 'lowhp', 'finale', 'spectate', 'demo'];
@@ -212,10 +213,10 @@
   function panOf(s, x) { return clamp((x - s.cam.x - 128) / 128, -1, 1); }
   function shoot(s, a, ang, type, opts) {
     opts = opts || {};
-    const m = muzzle(a, ang), n = type === 'splash' ? 5 : 1, life = Math.ceil(RANGE[type] / BV);
+    const m = muzzle(a, ang), n = type === 'splash' ? SPLASH.pellets : 1, life = Math.ceil(RANGE[type] / BV);
     const gold = type !== 'weak' && s.x2 === a.team;
     for (let i = 0; i < n; i++) {
-      const aa = n > 1 ? ang + (i / (n - 1) - 0.5) * 0.56 : ang;
+      const aa = n > 1 ? ang + (i / (n - 1) - 0.5) * SPLASH.spread : ang;
       s.bullets.push({ x: m.x, y: m.y, vx: Math.cos(aa) * BV, vy: Math.sin(aa) * BV, life, type, team: a.team, gold, owner: a.id });
     }
     if (opts.sound) s.ev.push({ sfx: type === 'normal' ? 'shotN' : type === 'splash' ? 'shotS' : 'shotW', pan: panOf(s, a.x) });
@@ -547,29 +548,29 @@
     }
   }
 
-  // The range guide: a dot every 8px from the gun along the aim out to the weapon's range (16 dots at most), and for
-  // the splash gun (not its weak shot) the spread as 5 dots at 40px.
-  function rangeGuide(c, s, you, ang, w, weak, col) {
-    const [ox, oy] = scr(s, you.x, you.y + GS.ACTOR_LAYOUT.gunDy), ux = Math.cos(ang), uy = Math.sin(ang), range = rangeOf(s, w, weak);
+  // The range guide from the gun at (ox, oy): a dot every 8px along the aim out to the weapon's range (16 dots at
+  // most), and for a volley (the splash gun, not its weak shot) a dot per pellet across its spread at that range.
+  function rangeGuide(c, s, ox, oy, ang, w, weak, col) {
+    const ux = Math.cos(ang), uy = Math.sin(ang), range = rangeOf(s, w, weak);
     for (let i = 1; i <= 16 && i * 8 <= range; i++) GS.px(c, ox + ux * i * 8, oy + uy * i * 8, col);
-    if (!weak && w === 'splash') {
-      for (let i = 0; i < 5; i++) { const aa = ang + (i / 4 - 0.5) * 0.56; GS.px(c, ox + Math.cos(aa) * 40, oy + Math.sin(aa) * 40, col); }
+    const v = weak ? null : s.real ? ruleWeapon(w) : w === 'splash' ? SPLASH : null;
+    if (v && v.pellets > 1) {
+      for (let i = 0; i < v.pellets; i++) { const aa = ang + (i / (v.pellets - 1) - 0.5) * v.spread; GS.px(c, ox + Math.cos(aa) * range, oy + Math.sin(aa) * range, col); }
     }
   }
   function drawAim(c, s, f, mode) {
     const you = s.actors[0];
     if (!you.alive || !mode) return;
-    const w = WEAP[s.weapon], weak = shortOf(s, you, w);
-    const p = aimPoint(s), [ax, ay] = scr(s, p.x, p.y);
+    const w = WEAP[s.weapon], weak = shortOf(s, you, w), [ox, oy] = scr(s, you.x, you.y + GS.ACTOR_LAYOUT.gunDy);
     if (mode === 'mouse') {                     // PC: the guide toward the cursor, the crosshair on it (red when short)
-      const [ox, oy] = scr(s, you.x, you.y + GS.ACTOR_LAYOUT.gunDy);
-      rangeGuide(c, s, you, Math.atan2(ay - oy, ax - ox), w, weak, 'white');
+      const p = aimPoint(s), [ax, ay] = scr(s, p.x, p.y);
+      rangeGuide(c, s, ox, oy, Math.atan2(ay - oy, ax - ox), w, weak, 'white');
       GS.spr(c, 'crosshair', ax - 4, ay - 4, { pal: weak ? 'danger' : 'white' });
     } else if (mode === 'assist') {
       // touch: the same guide along the way YOU faces (the aim the game uses), in red when the tank is short (there
       // is no crosshair to turn red); none at a pump, where YOU cannot shoot. Then the aim-assist target mark,
       // shrinking over 10f (2 frames).
-      if (you.pose !== 'pump') rangeGuide(c, s, you, you.ang, w, weak, weak ? 'danger' : 'white');
+      if (you.pose !== 'pump') rangeGuide(c, s, ox, oy, you.ang, w, weak, weak ? 'danger' : 'white');
       const tg = assistTarget(s); if (!tg) return;
       const [kx, ky] = scr(s, tg.x, tg.y);
       GS.spr(c, f - s.lockF < 5 ? 'aim_lock' : 'aim_lock_1', kx - 8, ky - 8, { pal: 'white' });
