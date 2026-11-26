@@ -1,5 +1,5 @@
 /* ガン・スプラッシュ 復刻版 — title screens
- * States: boot (company logo), opening (perspective flyover of the map + 4 captions), title (PUSH),
+ * States: boot (company logo), opening (perspective flyover of the courtyard + 4 captions), title (PUSH),
  * menu, option, stage1..stage4 (stage select).
  * Also exposes GS.screens.title.drawLogo / logoCanvas / LOGO_BOX for the manual cover.
  * Plain classic script; everything is drawn into GS.layers with palette colours only.
@@ -389,75 +389,153 @@
   }
 
   const CAPTIONS = ['ながい 雨が やんだ。', 'まちに 水たまりが のこった。', 'でも 水には かぎりが ある。', '3たい3! 中央の 陣地を うばえ'];
-  let floor = null, m7img = null;
-  // The floor is the real tutorial stage (game.mjs via data.js). It is cached per stage object, so a frame
+  // The flyover is drawn in the game's world units (the tutorial courtyard is 1200x720). Camera: a ground point
+  // (x, y), eye height h and yaw (0 = looking north, toward -y; positive turns right). Screen: horizon at y72, focal
+  // length 128 px, so floor row y lies at depth h*128/(y-72) and column x at a lateral offset of (x-128)*depth/128.
+  // 480f, one caption every 120f. The camera (a Catmull-Rom path through CAM_KEYS, slowing to a stop over OP.move
+  // frames) comes in high over the town, turned toward the courtyard; follows the street down; swings left as it
+  // reaches the courtyard; and stops at its south-west corner turned toward the zone, which then sits in the middle of
+  // the picture for the last caption.
+  // haze: depths past which the floor is sky5 / sky5 and sky4 rows / sky4 on every other row
+  const OP = { len: 480, cap: 120, move: 420, horizon: 72, focal: 128, scale: 1 / 2, haze: [4600, 3800, 3000] };
+  const CAM_KEYS = [
+    { x: 430, y: 2750, h: 460, yaw: 0.22 },
+    { x: 600, y: 1500, h: 340, yaw: 0 },
+    { x: 560, y: 880, h: 230, yaw: 0.22 },
+    { x: 330, y: 640, h: 170, yaw: Math.atan2(600 - 330, 640 - 360) },
+  ];
+  const SUN_AZ = Math.atan2(72, 128);   // the sun's direction: screen x200 when the camera looks straight north
+  function camAt(t) {
+    const p = clamp(t / OP.move, 0, 1), u = (1 - (1 - p) * (1 - p)) * (CAM_KEYS.length - 1);
+    const i = Math.min(F(u), CAM_KEYS.length - 2), s = u - i, K = j => CAM_KEYS[clamp(j, 0, CAM_KEYS.length - 1)];
+    const k0 = K(i - 1), k1 = K(i), k2 = K(i + 1), k3 = K(i + 2), cam = {};
+    for (const n of ['x', 'y', 'h', 'yaw']) {
+      const a = k0[n], b = k1[n], c = k2[n], d = k3[n];
+      cam[n] = 0.5 * (2 * b + (c - a) * s + (2 * a - 5 * b + 4 * c - d) * s * s + (3 * b - a - 3 * c + d) * s * s * s);
+    }
+    return cam;
+  }
+
+  // The floor is the real tutorial stage (game.mjs via data.js) at half size, its walls flat on the ground as on the
+  // map, with its puddles full, the zone and the pumps; wet marks the open water (water / waterDk), which mirrors the sky. Cached per stage object, so a frame
   // drawn before the data exists is never kept.
+  let floor = null;
   function buildFloor() {
     const st = GS.stage('tutorial');
     if (floor && floor.src === st) return floor;
-    const map = GS.mapCanvas('tutorial', 1 / 3);
+    const s = OP.scale, map = GS.mapCanvas('tutorial', s);
     const cv = GS.makeCanvas(map.width, map.height), c = cv.getContext('2d', { willReadFrequently: true });
     c.imageSmoothingEnabled = false;
     c.drawImage(map, 0, 0);
-    GS.drawPuddles(c, 'tutorial', [5, 5, 5, 5], 0, 0, 1 / 3, 0);
-    GS.drawZone(c, 0, 0, 1 / 3, 'neutral', 0);
-    GS.drawPumps(c, 'tutorial', null, 0, 0, 1 / 3, 0);
-    const fl = { src: st, w: cv.width, h: cv.height, d: c.getImageData(0, 0, cv.width, cv.height).data };
+    GS.drawPuddles(c, 'tutorial', [5, 5, 5, 5], 0, 0, s, 0);
+    GS.drawZone(c, 0, 0, s, 'neutral', 0);
+    GS.drawPumps(c, 'tutorial', null, 0, 0, s, 0);
+    const d = c.getImageData(0, 0, cv.width, cv.height).data, wet = new Uint8Array(cv.width * cv.height);
+    const open = ['water', 'waterDk'].map(n => GS.rgb(P[n]));
+    for (let i = 0; i < wet.length; i++) if (open.some(w => w[0] === d[i * 4] && w[1] === d[i * 4 + 1] && w[2] === d[i * 4 + 2])) wet[i] = 1;
+    // the zone's rim (a 6 px band inside its edge), lit for the last caption
+    const Z = GS.ZONE, ring = new Uint8Array(wet.length);
+    if (Z) for (let j = 0; j < cv.height; j++) for (let i = 0; i < cv.width; i++) {
+      const r = Math.hypot((i + 0.5) / s - Z.x, (j + 0.5) / s - Z.y);
+      if (r <= Z.r && r > Z.r - 6) ring[j * cv.width + i] = 1;
+    }
+    const fl = { src: st, w: cv.width, h: cv.height, d32: new Uint32Array(d.buffer), wet, ring };
     if (st) floor = fl;
     return fl;
   }
-  // horizon y=72, eye height h=64, focal f=128: z = h*f/(y-72); src = (camX + (x-128)*z/f, camZ - z).
-  // Floor = GS.mapCanvas('tutorial',1/3) (+ puddles, zone, pumps); camZ 600 -> 120 (1/3-map px) over 360f.
-  // Outside the map: the dark town ground ('outside'), a street ('dry', curbs 'dry2') leading from the camera
-  // to the courtyard, and rain puddles left on it ('waterDeep', far edge 'waterDk'). Low contrast, so the
-  // courtyard stays the subject. Puddles are only drawn for z < 260, where they are at least ~1 row tall.
-  // Haze: horizontal (scanline) dither, no checker: z>1400 sky5; 1100..1400 sky5/sky4 rows; 800..1100 sky4 on
-  // every other row.
+  // Rows 0..72: the sky, the sun (x200) and the title's town skyline standing on the horizon, as one 256 px wide
+  // image that repeats sideways; the yaw moves it by shift (the sun's offset from x200). Its pixels are also what
+  // the puddles mirror.
+  let opSky = null;
+  function openingSky() {
+    if (opSky) return opSky;
+    const town = GS.makeCanvas(256, 128), cv = GS.makeCanvas(256, 73), c = cv.getContext('2d');
+    drawTown(town.getContext('2d'));
+    GS.gradRows(c, 0, 72, ['sky1', 'sky2', 'sky3', 'sky4', 'sky5']);
+    GS.circle(c, 200, 72, 12, 'sun', { fill: true });
+    c.drawImage(town, 0, 88, 256, 40, 0, 33, 256, 40);
+    opSky = { cv, d32: new Uint32Array(c.getImageData(0, 0, 256, 73).data.buffer) };
+    return opSky;
+  }
   function hash2(a, b) {
     let h = (Math.imul(a, 374761393) + Math.imul(b, 668265263)) | 0;
     h = Math.imul(h ^ (h >>> 13), 1274126177);
     return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
   }
-  const STREET = { half: 44, curb: 3, cell: 32 };
+  // Outside the courtyard (world units): a curb around it, the street leading south from its middle (asphalt,
+  // curbs, a dashed centre line) and stone paving everywhere else, with rain puddles on the street and the paving.
+  // Fine detail (grout, dashes, puddles) is left out where it would be thinner than a pixel row.
+  const STREET = { cx: 600, half: 132, curb: 12, dash: 90, tile: 64, grout: 4, cell: 112 };
+  // Pixels are written as packed RGBA words (Uint32Array views of the ImageData, little-endian: 0xAABBGGRR).
+  const pack = c => ((255 << 24) | (c[2] << 16) | (c[1] << 8) | c[0]) >>> 0;
   let m7col = null;
-  // writes the colour of the ground outside the map at map point (sx, sy) into out[0..2]
-  function outsideAt(sx, sy, z, flh, out) {
-    const ax = Math.abs(sx - 200), street = sy >= flh - 2 && ax < STREET.half;
-    let o = street ? (ax >= STREET.half - STREET.curb ? m7col.curb : m7col.road) : m7col.out;
-    if (z < 260) {
-      const cx = F(sx / STREET.cell), cy = F(sy / STREET.cell), h = hash2(cx, cy);
-      if (h < 0.42) {
-        const pcx = cx * STREET.cell + 9 + F(hash2(cx + 31, cy) * 14), pcy = cy * STREET.cell + 9 + F(hash2(cx, cy + 57) * 14);
-        const rx = 5 + F(hash2(cx + 7, cy + 3) * 6), ry = 4 + F(hash2(cx + 3, cy + 7) * 4);
-        const u = (sx - pcx) / rx, v = (sy - pcy) / ry;
-        if (u * u + v * v <= 1) o = v < -0.45 ? m7col.pg : m7col.pd;
+  function opColours() {
+    if (m7col) return m7col;
+    const c = n => pack(GS.rgb(P[n]));
+    m7col = { tile: c('dry2'), tile2: c('dry'), grout: c('dim'), road: c('wallSide'), curb: c('gray'), dash: c('neutral'),
+      puddle: c('waterDeep'), fog5: c('sky5'), fog4: c('sky4'), gold: c('gold') };
+    return m7col;
+  }
+  let opWet = 0;   // set by outsideCol: 1 when the point is open water (a puddle)
+  // Per tile / puddle cell results, kept for the next pixel (neighbouring pixels mostly share them).
+  const lastTile = { x: NaN, y: NaN, v: 0 }, lastCell = { x: NaN, y: NaN, p: null };
+  function puddleIn(cx, cy) {   // the cell's rain puddle (centre and radii) or null
+    if (hash2(cx, cy) >= 0.38) return null;
+    return { x: cx * STREET.cell + 30 + hash2(cx + 31, cy) * 52, y: cy * STREET.cell + 24 + hash2(cx, cy + 57) * 64,
+      rx: 16 + hash2(cx + 7, cy + 3) * 24, ry: 8 + hash2(cx + 3, cy + 7) * 12 };
+  }
+  // the colour at world point (X, Y) outside the courtyard, at that depth
+  function outsideCol(X, Y, depth) {
+    const col = m7col, ax = X > STREET.cx ? X - STREET.cx : STREET.cx - X;
+    opWet = 0;
+    let o;
+    if (Y >= 720 && ax < STREET.half) {
+      o = ax >= STREET.half - STREET.curb ? col.curb
+        : ax < 4 && depth < 1800 && Y - Math.floor(Y / (STREET.dash * 2)) * STREET.dash * 2 < STREET.dash ? col.dash : col.road;
+    } else if (X > -14 && X < 1214 && Y > -14 && Y < 734) return col.curb;
+    else {
+      const tx = Math.floor(X / STREET.tile), ty = Math.floor(Y / STREET.tile);
+      if (depth < 1500 && (X - tx * STREET.tile < STREET.grout || Y - ty * STREET.tile < STREET.grout)) o = col.grout;
+      else {
+        if (tx !== lastTile.x || ty !== lastTile.y) { lastTile.x = tx; lastTile.y = ty; lastTile.v = hash2(tx, ty) < 0.2 ? col.tile2 : col.tile; }
+        o = lastTile.v;
       }
     }
-    out[0] = o[0]; out[1] = o[1]; out[2] = o[2];
-  }
-  function drawFlyover(c, t) {
-    GS.gradRows(c, 0, 72, ['sky1', 'sky2', 'sky3', 'sky4', 'sky5']);
-    GS.circle(c, 200, 72, 12, 'sun', { fill: true }); // lower half is replaced by the floor rows
-    const fl = buildFloor(), fd = fl.d;
-    if (!m7img) m7img = c.createImageData(256, 151);
-    if (!m7col) {
-      m7col = { out: GS.rgb(P.outside), road: GS.rgb(P.dry), curb: GS.rgb(P.dry2), pd: GS.rgb(P.waterDeep), pg: GS.rgb(P.waterDk),
-        fog5: GS.rgb(P.sky5), fog4: GS.rgb(P.sky4) };
+    if (depth < 1100 && o !== col.curb) {
+      const cx = Math.floor(X / STREET.cell), cy = Math.floor(Y / STREET.cell);
+      if (cx !== lastCell.x || cy !== lastCell.y) { lastCell.x = cx; lastCell.y = cy; lastCell.p = puddleIn(cx, cy); }
+      const p = lastCell.p;
+      if (p) { const u = (X - p.x) / p.rx, v = (Y - p.y) / p.ry; if (u * u + v * v <= 1) { opWet = 1; return col.puddle; } }
     }
-    const d = m7img.data, camX = 200, camZ = 600 - 480 * clamp(t / 360, 0, 1), px = [0, 0, 0];
+    return o;
+  }
+  let m7img = null, m7out = null;
+  function drawFlyover(c, t) {
+    const cam = camAt(t), col = opColours(), fl = buildFloor(), fd = fl.d32, wetAt = fl.wet, fw = fl.w, fh = fl.h, s = OP.scale;
+    const shift = R(OP.focal * Math.tan(SUN_AZ - cam.yaw)) - 72, sky = openingSky(), sd = sky.d32, x0 = shift & 255;
+    c.drawImage(sky.cv, x0, 0);
+    c.drawImage(sky.cv, x0 - 256, 0);
+    if (!m7img) { m7img = c.createImageData(256, 151); m7out = new Uint32Array(m7img.data.buffer); }
+    const out = m7out, sin = Math.sin(cam.yaw), cos = Math.cos(cam.yaw), wave = F(t / 8), [h0, h1, h2] = OP.haze;
+    // last caption (中央の 陣地を うばえ): the zone's rim blinks gold, 16f on / 16f off (always on with reduced motion)
+    const ringAt = t >= 3 * OP.cap && (reduced() || F((t - 3 * OP.cap) / 16) % 2 === 0) ? fl.ring : null;
     for (let y = 73; y < 224; y++) {
-      const z = 8192 / (y - 72), sy = camZ - z, iy = F(sy), row = (y - 73) * 256, k8 = z / 128;
-      const fogC = z > 1400 ? m7col.fog5 : z > 1100 ? (y & 1 ? m7col.fog4 : m7col.fog5) : z > 800 && !(y & 1) ? m7col.fog4 : null;
-      for (let x = 0; x < 256; x++) {
-        const k = (row + x) * 4;
-        let r, g, b;
-        if (fogC) { r = fogC[0]; g = fogC[1]; b = fogC[2]; }
-        else {
-          const sx = camX + (x - 128) * k8, ix = F(sx);
-          if (ix >= 0 && iy >= 0 && ix < fl.w && iy < fl.h) { const q = (iy * fl.w + ix) * 4; r = fd[q]; g = fd[q + 1]; b = fd[q + 2]; }
-          else { outsideAt(sx, sy, z, fl.h, px); r = px[0]; g = px[1]; b = px[2]; }
-        }
-        d[k] = r; d[k + 1] = g; d[k + 2] = b; d[k + 3] = 255;
+      const depth = (cam.h * OP.focal) / (y - OP.horizon), k = depth / OP.focal, row = (y - 73) * 256;
+      // haze toward the horizon: rows of sky5, then sky5 / sky4, then sky4 on every other row
+      const haze = depth > h0 ? col.fog5 : depth > h1 ? (y & 1 ? col.fog4 : col.fog5) : depth > h2 && !(y & 1) ? col.fog4 : 0;
+      if (haze) { out.fill(haze, row, row + 256); continue; }
+      // open water mirrors the sky row as far above the horizon as it is below (the sky's first row past the top):
+      // seen at a low angle (far) on every other row, nearer on every 3rd, close by on every 4th, so nearby water
+      // keeps its own colour; the rows move every 8f
+      const ph = y + wave, mirror = depth > 700 ? ph & 1 : depth > 350 ? ph % 3 === 0 : (ph & 3) === 0;
+      const m = Math.max(0, 2 * OP.horizon - y) * 256, dX = cos * k, dY = sin * k;
+      let X = cam.x + sin * depth - 128 * dX, Y = cam.y - cos * depth - 128 * dY;
+      for (let x = 0; x < 256; x++, X += dX, Y += dY) {
+        const ix = Math.floor(X * s), iy = Math.floor(Y * s);
+        let v, wet;
+        if (ix >= 0 && iy >= 0 && ix < fw && iy < fh) { const q = iy * fw + ix; v = ringAt && ringAt[q] ? col.gold : fd[q]; wet = wetAt[q]; }
+        else { v = outsideCol(X, Y, depth); wet = opWet; }
+        out[row + x] = wet && mirror ? sd[m + ((x - shift) & 255)] : v;
       }
     }
     c.putImageData(m7img, 0, 73);
@@ -466,7 +544,7 @@
     drawFlyover(L.bg1, t);
     const open = GS.step(t, 0, 6);
     GS.win(L.hud, 8, 176, 240, 32, { fill: 'half', open });
-    if (open >= 1) GS.text16(L.hud, CAPTIONS[clamp(F(t / 90), 0, 3)], 128, 184, { align: 'center' });
+    if (open >= 1) GS.text16(L.hud, CAPTIONS[clamp(F(t / OP.cap), 0, 3)], 128, 184, { align: 'center' });
   }
 
   // =====================================================================
@@ -760,10 +838,10 @@
             if (t < 16) { goTitleComplete(); return; }
             fadeThen(16, goTitleComplete); return;
           }
-          const k = clamp(F(t / 90), 0, 3);
+          const k = clamp(F(t / OP.cap), 0, 3);
           if (t === 0) GS.sfx('msg');
-          if (k !== S.said && t < 360) { S.said = k; GS.shell.say(CAPTIONS[k]); }
-          if (t === 360 && !S.busy) fadeThen(16, () => GS.go('title', 'title'));
+          if (k !== S.said && t < OP.len) { S.said = k; GS.shell.say(CAPTIONS[k]); }
+          if (t === OP.len && !S.busy) fadeThen(16, () => GS.go('title', 'title'));
           return;
         }
         case 'title': {
@@ -889,7 +967,7 @@
     still(st, L) {
       switch (st) {
         case 'boot': drawBoot(L, 120, true); return;
-        case 'opening': drawOpening(L, 300); return; // caption 4, map close to the camera
+        case 'opening': drawOpening(L, OP.len - 30); return; // caption 4: the camera has stopped, the zone in the middle
         case 'title': drawTitleScene(L, 9999, 0, { push: true, still: true }); return;
         case 'menu': drawTitleScene(L, 9999, 0, { push: false, still: true }); drawMenuWin(L, newMenu(0), 0, 1); return;
         case 'option': { // default values of the sound test (BGM 01 and its name), whatever the live screen shows
