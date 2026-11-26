@@ -759,19 +759,47 @@
   function ring(c, x, y, w, h, tok) { GS.rect(c, x, y, w, 1, tok); GS.rect(c, x, y + h - 1, w, 1, tok); GS.rect(c, x, y, 1, h, tok); GS.rect(c, x + w - 1, y, 1, h, tok); }
   // rule line (y180): the capture goal comes from game.mjs CONFIG (GS.RULES)
   const ruleLine = () => (GS.RULES ? GS.RULES.captureGoal : 30) + '秒確保か ぜんめつで かち!';
-  function drawStage(L, n, f, mosaic) {
+  // Stage progress (live build): a stage opens with a win on the one before it (GS.app.stageOpen). Without a live
+  // GS.app (mock, manual stills) every stage is open.
+  const stageLocked = n => { const st = stageAt(n); return !!st && live() && typeof GS.app.stageOpen === 'function' && !GS.app.stageOpen(st.id); };
+  const unlockHint = n => (stageAt(n - 1) ? stageAt(n - 1).levelRom : '') + 'で かつと あそべる!';
+  const lockedSay = n => 'まだ あそべません。' + unlockHint(n);   // aria-live (sayStage, sortie)
+  // A stage not open yet: its preview map, still, in dark greys by brightness (built once per stage).
+  const GREYS = ['ink', 'dim', 'grayDk', 'gray'];
+  const greyMaps = {};
+  function greyMap(st) {
+    if (greyMaps[st.id]) return greyMaps[st.id];
+    const cv = GS.makeCanvas(MAP.w, MAP.h), c = cv.getContext('2d', { willReadFrequently: true });
+    drawPreview(c, st, 0, 0, 0);
+    const im = c.getImageData(0, 0, MAP.w, MAP.h), d = im.data, ramp = GREYS.map(GS.rgb);
+    for (let i = 0; i < d.length; i += 4) {
+      const g = ramp[F((0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) * GREYS.length / 256)];
+      d[i] = g[0]; d[i + 1] = g[1]; d[i + 2] = g[2]; d[i + 3] = 255;
+    }
+    c.putImageData(im, 0, 0);
+    return (greyMaps[st.id] = cv);
+  }
+  // preview map at (x, y): ground, walls, puddles (initial level), pumps (2x2), zone ring r8
+  function drawPreview(c, st, x, y, f) {
+    c.drawImage(GS.mapCanvas(st.id, MAP.s), x, y);
+    GS.drawPuddles(c, st.id, st.pools.map(p => GS.poolLevel(p.initial, p.capacity)), x, y, MAP.s, f);
+    GS.drawPumps(c, st.id, null, x, y, MAP.s, f);
+    GS.drawZone(c, x, y, MAP.s, 'neutral', f);
+  }
+  function drawStage(L, n, f, mosaic, locked) {
     const st = stageAt(n); if (!st) return;
     drawPattern(L, true, f);
-    // preview map (bg1): ground, walls, puddles (initial level), pumps (2x2), zone ring r8
-    L.bg1.drawImage(GS.mapCanvas(st.id, MAP.s), MAP.x, MAP.y);
-    GS.drawPuddles(L.bg1, st.id, st.pools.map(p => GS.poolLevel(p.initial, p.capacity)), MAP.x, MAP.y, MAP.s, f);
-    GS.drawPumps(L.bg1, st.id, null, MAP.x, MAP.y, MAP.s, f);
-    GS.drawZone(L.bg1, MAP.x, MAP.y, MAP.s, 'neutral', f);
+    if (locked) L.bg1.drawImage(greyMap(st), MAP.x, MAP.y);
+    else drawPreview(L.bg1, st, MAP.x, MAP.y, f);
     if (mosaic > 1) GS.mosaicRegion(L.bg1, MAP.x, MAP.y, MAP.w, MAP.h, mosaic);
-    // frame (2px, x14..137 y34..109) and start directions
+    // frame (2px, x14..137 y34..109) and start directions; a stage not open yet: まだ あそべない across the map
     ring(L.hud, 14, 34, 124, 76, 'ink'); ring(L.hud, 15, 35, 122, 74, 'frameHi');
-    GS.text8(L.hud, '▶', 17, 68, { set: 'H1', style: 'outline' });
-    GS.text8(L.hud, '◀', 128, 68, { set: 'H2', style: 'outline' });
+    if (locked) {
+      GS.text16(L.hud, 'まだあそべない', 76, 64, { align: 'center', style: 'outline' });
+    } else {
+      GS.text8(L.hud, '▶', 17, 68, { set: 'H1', style: 'outline' });
+      GS.text8(L.hud, '◀', 128, 68, { set: 'H2', style: 'outline' });
+    }
     // texts
     GS.banner(L.hud, 'STAGE SELECT', 32, 8, { set: 'H0' });
     GS.text8(L.hud, 'STAGE ' + st.no, 144, 36);
@@ -782,7 +810,7 @@
     for (let i = 0; i < 4; i++) GS.text8(L.hud, i < st.cpu ? '★' : '☆', 176 + i * 8, 100, { set: i < st.cpu ? 'H3' : 'H0' });
     GS.win(L.hud, 8, 116, 240, 60); // y116..175, off the 8px grid on purpose
     st.descRom.forEach((s, i) => GS.text16(L.hud, s, 16, 122 + i * 16));
-    GS.text16(L.hud, ruleLine(), 128, 180, { set: 'H3', align: 'center' });
+    GS.text16(L.hud, locked ? unlockHint(n) : ruleLine(), 128, 180, { set: 'H3', align: 'center' });
     GS.text8(L.hud, '◀ ' + n + '/4 ▶', 128, 200, { align: 'center' });
   }
 
@@ -808,6 +836,7 @@
   function sortie() {
     const st = stageAt(S.n);
     if (!st) { GS.sfx('buzz'); GS.warnOnce('title:nostage', 'stage', S.n, 'has no data (GS.STAGES)'); return; }
+    if (stageLocked(S.n)) { GS.sfx('buzz'); GS.shell.say(lockedSay(S.n), { sub: false }); return; }
     S.busy = true; S.sortie = { black: null, done: false };
     GS.sfx('start');
     if (GS.bgm) GS.bgm.stop(40);   // the stage select music fades with the iris (32f) and the black (8f)
@@ -823,9 +852,10 @@
     GS.state.stage = st.id; GS.state.stageNo = st.no;
     GS.go('play', 'countdown', { stage: st.id, stageNo: st.no, from: 'title' });
   }
-  // the stage the menu's ゲームスタート opens: GS.app.selectedStage (live) or the last one shown (mock)
+  // the stage the menu's ゲームスタート opens: GS.app.stageToShow() (live: the stage a win just opened, else the
+  // selected one) or the last one shown (mock)
   function startStageNo() {
-    if (live() && GS.app.selectedStage && typeof GS.app.stageNo === 'function') return clamp(GS.app.stageNo(GS.app.selectedStage) | 0 || 1, 1, 4);
+    if (live() && typeof GS.app.stageToShow === 'function') return clamp(GS.app.stageNo(GS.app.stageToShow()) | 0 || 1, 1, 4);
     return lastStage;
   }
   // stage select shows stage n: in the live build that is GS.app.selectedStage (toStageSelect / ゲームスタート
@@ -863,7 +893,7 @@
   // stage select: announce the selected stage (on entry and on every switch)
   function sayStage(n) {
     const st = stageAt(n); if (!st) return;
-    GS.shell.say('ステージ' + st.no + '／4 ' + st.name + ' レベル ' + st.levelRom + ' CPUの つよさ ' + st.cpu + '／4 ' + st.descRom.join(' '), { sub: false });
+    GS.shell.say('ステージ' + st.no + '／4 ' + st.name + ' レベル ' + st.levelRom + (stageLocked(n) ? ' ' + lockedSay(n) : '') + ' CPUの つよさ ' + st.cpu + '／4 ' + st.descRom.join(' '), { sub: false });
   }
   // BGM: from the top (also with おんがく OFF, until the next screen); SE: one shot
   function playTest() {
@@ -1057,7 +1087,7 @@
         }
         case 'option': drawOption(L, S.m, t, f); return;
         default:
-          if (S.n) drawStage(L, S.n, f, S.params.switched && !reduced() && t < 8 ? 8 - t : 1);
+          if (S.n) drawStage(L, S.n, f, S.params.switched && !reduced() && t < 8 ? 8 - t : 1, stageLocked(S.n));
       }
     },
 
@@ -1073,7 +1103,7 @@
           try { drawOption(L, newOptMenu(0), 0, 0); } finally { testIdx = keep; }
           return;
         }
-        default: drawStage(L, clamp(+String(st).replace('stage', '') || 1, 1, 4), 0, 1);
+        default: drawStage(L, clamp(+String(st).replace('stage', '') || 1, 1, 4), 0, 1, false);   // every stage open
       }
     },
 

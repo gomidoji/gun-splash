@@ -125,6 +125,10 @@
     });
     return out;
   };
+  // ... and the write (JSON). Where storage is unavailable the values last while the page is open.
+  GS.savePrefs = function (key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* storage unavailable */ }
+  };
 
   // ---------------------------------------------------------------------
   // Boot gate. Every page that loads this script brings the game rules (index.html and manual.html, both marked

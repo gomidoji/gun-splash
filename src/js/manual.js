@@ -53,7 +53,7 @@
   const PREF_KEY = 'gs-manual-viewer-v1';
   const prefs = GS.loadPrefs(PREF_KEY, { view: 'auto', look: 'scan', ruby: true, text: false },
     { view: ['auto', 'spread', 'single'], look: ['scan', 'crisp'] });
-  function savePrefs() { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch (e) { /* storage unavailable */ } }
+  const savePrefs = () => GS.savePrefs(PREF_KEY, prefs);
 
   // =====================================================================
   // 総ルビ

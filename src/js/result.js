@@ -164,7 +164,10 @@
     const sub = SUB[D.winner || 'none'];
     D.sub = sub[0]; D.subSet = sub[1];
     D.comment = commentFor(o, D);
-    D.tip = tipFor(o, you);
+    // a win that opened the next stage (live: M.opened, its id) says so in gold in place of the tip
+    const opened = M.opened ? GS.stage(M.opened) : null;
+    D.tip = opened ? opened.levelRom + 'が あそべる!' : tipFor(o, you);
+    D.tipSet = opened ? 'H3' : 'H0';
     D.titleLines = titleFor(you);
     check(ck, 'sub', D.sub, M.sub); check(ck, 'comment', D.comment, M.comment); check(ck, 'tip', D.tip, M.tip); check(ck, 'title', D.titleLines, M.titleLines);
     // M.jingle null (live: play's end banner already played it) = no jingle on page 1
@@ -242,6 +245,7 @@
       // game.mjs: initial = used + discarded + Σ water of the living + remaining
       water: { shot: +w.used || 0, spilled: +w.discarded || 0, tank, left: +w.remaining || 0, total: R(+w.initial || 0) || 1200 },
       jingle: null,
+      opened: snap.opened || null,   // the stage this win opened (GS.app stage progress)
     };
   }
   // The live data set for a result entered with params.live, or null (no GS.app / not live / error -> mock).
@@ -614,7 +618,7 @@
       const [lx, ly, rx, ry] = P3L.record;
       GS.text16(c, 'せんせき', lx, ly, { set: 'H0', style: 'outline' });
       drawRecord(c, D, rx, ry);
-      typeText(c, D.tip, P3L.tip, et - P3.TIP, { set: 'H0' });
+      typeText(c, D.tip, P3L.tip, et - P3.TIP, { set: D.tipSet });
     }
     if (et >= D.p3Final) {
       for (let rx = 16; rx < 240; rx += 2) GS.px(c, rx, P3L.rule, 'frameLo');   // dotted rule: tip | menu

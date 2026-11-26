@@ -34,7 +34,7 @@
     reducedPref: ['auto', 'on', 'off'], layoutOverride: ['auto', 'pc', 'portrait', 'landscape'],
     lastManual: /^[a-z][a-z0-9]{0,15}$/,   // a manual page id (p1, cover1, ...); manual.js checks it against its pages
   });
-  function savePrefs() { try { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); } catch (e) { /* storage unavailable */ } }
+  const savePrefs = () => GS.savePrefs(PREF_KEY, prefs);
 
   const mqCoarse = matchMedia('(pointer: coarse)');
   const mqAnyCoarse = matchMedia('(any-pointer: coarse)');
@@ -638,6 +638,18 @@
     restoreFocus(settingsReturn); settingsReturn = null;
   }
   function toggleSettings() { if (settingsEl.hidden) openSettings(); else closeSettings(); }
+  // 「ステージの進みぐあいを最初にもどす」 (live build, GS.app.resetProgress): the first press asks again on the button
+  // itself for 4 s, the second one resets and says so (4 s, then the label is back)
+  const PROGRESS_LABEL = ['ステージの進みぐあいを最初にもどす', 'もう一度おすと最初にもどします', '最初にもどしました'];
+  let progressTimer = 0, progressAsking = false;
+  function resetProgress() {
+    const b = $('[data-act="reset-progress"]'); if (!b || !GS.app || typeof GS.app.resetProgress !== 'function') return;
+    if (progressAsking) GS.app.resetProgress();
+    b.textContent = PROGRESS_LABEL[progressAsking ? 2 : 1];
+    progressAsking = !progressAsking;
+    clearTimeout(progressTimer);
+    progressTimer = setTimeout(() => { progressAsking = false; b.textContent = PROGRESS_LABEL[0]; }, 4000);
+  }
   // aria-modal dialog: keep Tab inside the panel
   settingsEl.addEventListener('keydown', e => {
     if (e.key !== 'Tab') return;
@@ -741,6 +753,7 @@
     'close-settings': closeSettings,
     'close-mock': () => { mockEl.hidden = true; },
     reset: () => { closeSettings(); goTitle(); },
+    'reset-progress': resetProgress,
     'play-mute': () => powerOn(false),
     'play-sound': () => powerOn(true),
     'boot-manual': () => GS.shell.openManual('cover1'),

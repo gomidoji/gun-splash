@@ -28,6 +28,23 @@ const STAGE_IDS = STAGES.map(s => s.id);
 const stageNo = id => Math.max(1, STAGE_IDS.indexOf(id) + 1);          // 1..4 (title states stage1..stage4)
 const validStage = id => STAGE_IDS.indexOf(id) >= 0;
 
+// ------------------------------------------------------------------ stage progress (saved in this browser)
+// The stages open in order: at first only the first one, and a win on the last open stage opens the next. Saved
+// in localStorage (where it cannot be saved, it lasts while the page is open). ?unlock=1 opens every stage for
+// playtests and leaves the saved progress as it is.
+const PROGRESS_KEY = 'gs-progress-v1';
+const UNLOCK_ALL = query.get('unlock') === '1';
+let opened = GS.clamp(Math.floor(GS.loadPrefs(PROGRESS_KEY, { opened: 1 }).opened) || 1, 1, STAGE_IDS.length);   // open stages
+let openedNow = null;    // the stage this round's win opened (the result says so)
+let newStage = null;     // the same, until the stage select first opens on it
+const stageOpen = id => UNLOCK_ALL || stageNo(id) <= opened;
+const saveProgress = () => GS.savePrefs(PROGRESS_KEY, { opened });
+function openAfter(id) {
+  if (UNLOCK_ALL || stageNo(id) !== opened || opened >= STAGE_IDS.length) return;
+  opened++; saveProgress();
+  openedNow = newStage = STAGE_IDS[opened - 1];
+}
+
 const game = new Game(newSeed(), 'tutorial');
 const aimAssist = new AimAssist();
 let demoStage = -1;
@@ -41,6 +58,7 @@ function resetGame(stageId, autopilot) {
   app.countdown = -1;
   app.round++;
   app.recorded = false;
+  openedNow = null;
 }
 function syncStageState(id) { GS.state.stage = id; GS.state.stageNo = stageNo(id); }
 // startRound / retry / startDemo: a fresh match on the stage, then the play screen in `screenState` with
@@ -80,11 +98,24 @@ const app = {
   retry() {
     startLiveMatch(app.selectedStage, 'countdown', 'retry', false);
   },
-  // pause「ステージ選択」/ result menu: stage select showing the selected stage
+  // pause「ステージ選択」/ result menu: stage select showing the selected stage (or the one a win just opened)
   toStageSelect() {
     app.demo = false;
-    resetGame(app.selectedStage, false);
-    GS.go('title', 'stage' + stageNo(app.selectedStage), { fade: true });
+    const id = app.stageToShow();
+    resetGame(id, false);
+    GS.go('title', 'stage' + stageNo(id), { fade: true });
+  },
+  // Stage progress. stageOpen(id): the stage can be played. stageToShow(): the stage the stage select opens on, the
+  // one a win opened (once; it becomes the selected stage) or else the selected one. resetProgress(): settings
+  // 「ステージの進みぐあいを最初にもどす」, only the first stage open again.
+  stageOpen,
+  stageToShow() {
+    if (newStage) { app.selectedStage = newStage; newStage = null; }
+    return app.selectedStage;
+  },
+  resetProgress() {
+    opened = 1; newStage = null;
+    saveProgress();
   },
   // result menu「タイトルへ」, end of the demo: the title with the intro already finished
   toTitle() {
@@ -110,12 +141,15 @@ const app = {
     syncStageState(app.selectedStage);
   },
   openManual(page) { GS.shell.openManual(page); },
-  // Store this round's outcome once (call when the decided match hands over to the result screen).
-  // Demo matches are never recorded. Returns 'win' | 'lose' | 'draw' | null.
+  // Store this round's outcome once (call when the decided match hands over to the result screen); a win may open
+  // the next stage. Demo matches are never recorded. Returns 'win' | 'lose' | 'draw' | null.
   recordResult() {
     if (game.state !== 'ended') return null;
     const r = outcome();
-    if (!app.recorded && !app.demo) { app.session.record.push(r); app.recorded = true; }
+    if (!app.recorded && !app.demo) {
+      app.session.record.push(r); app.recorded = true;
+      if (r === 'win' && game.stage) openAfter(game.stage.id);
+    }
     return r;
   },
   // Numbers of the decided match. result.js reads only this. Plain values, world units / seconds.
@@ -132,6 +166,7 @@ const app = {
           refilled: a.stats.refilled, capture: a.stats.capture } })),
       // initial = used + discarded + Σ water of the living + remaining (game.mjs conservation; dead actors hold 0)
       water: { used: game.usedWater, discarded: game.discardedWater, remaining: game.remainingWater(), initial: game.initialTotalWater },
+      opened: openedNow,   // the stage id this win opened, or null
     };
   },
 };
