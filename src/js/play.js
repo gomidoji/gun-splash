@@ -547,22 +547,29 @@
     }
   }
 
+  // The range guide: a dot every 8px from the gun along the aim out to the weapon's range (16 dots at most), and for
+  // the splash gun (not its weak shot) the spread as 5 dots at 40px.
+  function rangeGuide(c, s, you, ang, w, weak, col) {
+    const [ox, oy] = scr(s, you.x, you.y + GS.ACTOR_LAYOUT.gunDy), ux = Math.cos(ang), uy = Math.sin(ang), range = rangeOf(s, w, weak);
+    for (let i = 1; i <= 16 && i * 8 <= range; i++) GS.px(c, ox + ux * i * 8, oy + uy * i * 8, col);
+    if (!weak && w === 'splash') {
+      for (let i = 0; i < 5; i++) { const aa = ang + (i / 4 - 0.5) * 0.56; GS.px(c, ox + Math.cos(aa) * 40, oy + Math.sin(aa) * 40, col); }
+    }
+  }
   function drawAim(c, s, f, mode) {
     const you = s.actors[0];
     if (!you.alive || !mode) return;
     const w = WEAP[s.weapon], weak = shortOf(s, you, w);
     const p = aimPoint(s), [ax, ay] = scr(s, p.x, p.y);
-    if (mode === 'mouse') {
+    if (mode === 'mouse') {                     // PC: the guide toward the cursor, the crosshair on it (red when short)
       const [ox, oy] = scr(s, you.x, you.y + GS.ACTOR_LAYOUT.gunDy);
-      const dx = ax - ox, dy = ay - oy, d = Math.hypot(dx, dy) || 1, ux = dx / d, uy = dy / d;
-      const range = rangeOf(s, w, weak);
-      for (let i = 1; i <= 16 && i * 8 <= range; i++) GS.px(c, ox + ux * i * 8, oy + uy * i * 8, 'white');
-      if (!weak && w === 'splash') {
-        const a0 = Math.atan2(uy, ux);
-        for (let i = 0; i < 5; i++) { const aa = a0 + (i / 4 - 0.5) * 0.56; GS.px(c, ox + Math.cos(aa) * 40, oy + Math.sin(aa) * 40, 'white'); }
-      }
+      rangeGuide(c, s, you, Math.atan2(ay - oy, ax - ox), w, weak, 'white');
       GS.spr(c, 'crosshair', ax - 4, ay - 4, { pal: weak ? 'danger' : 'white' });
-    } else if (mode === 'assist') {             // touch: aim-assist target mark, shrinks over 10f (2 frames)
+    } else if (mode === 'assist') {
+      // touch: the same guide along the way YOU faces (the aim the game uses), in red when the tank is short (there
+      // is no crosshair to turn red); none at a pump, where YOU cannot shoot. Then the aim-assist target mark,
+      // shrinking over 10f (2 frames).
+      if (you.pose !== 'pump') rangeGuide(c, s, you, you.ang, w, weak, weak ? 'danger' : 'white');
       const tg = assistTarget(s); if (!tg) return;
       const [kx, ky] = scr(s, tg.x, tg.y);
       GS.spr(c, f - s.lockF < 5 ? 'aim_lock' : 'aim_lock_1', kx - 8, ky - 8, { pal: 'white' });
