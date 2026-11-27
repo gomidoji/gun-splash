@@ -89,6 +89,7 @@
     <a href="#p14"><span class="t">水鉄砲大図鑑</span><i class="dots"></i><span class="n">14</span></a>
     <a href="#p16"><span class="t">ステージ紹介</span><i class="dots"></i><span class="n">16</span></a>
     <a href="#p17"><span class="t">一時停止とリザルト</span><i class="dots"></i><span class="n">17</span></a>
+    <a href="#sp1" class="toc-secret"><span class="t">ひみつのページ<b class="new">NEW</b></span><i class="dots"></i><span class="n">★</span></a>
     <a href="#p18"><span class="t">勝つためのヒント</span><i class="dots"></i><span class="n">18</span></a>
     <a href="#p19"><span class="t">メッセージ早見表</span><i class="dots"></i><span class="n">19</span></a>
     <a href="#p20"><span class="t en">MEMO</span><i class="dots"></i><span class="n">20</span></a>
@@ -514,6 +515,42 @@
     <p class="fs9">※Enter キーかタッチで演出を早送り。もう一度押すと次のページへ。</p>
   </section>
   <span class="nombre">17</span>
+</section>
+
+<!-- ================================================================ ひみつ1, ひみつ2: the special stage's spread, bound in after
+     p.17 only once the special stage is open (manual.js takes these pages out until then) -->
+<section class="page L c4 secret" id="sp1" data-label="ひみつ1" data-title="スペシャルステージ">
+  <header class="band"><span class="badge" role="img" aria-label="ひみつ"><b>？</b></span><h2>スペシャルステージ</h2></header>
+  <p class="a catch">上級で勝った<br>きみへの、ひみつ！</p>
+  <canvas class="a px sp-map" data-art="map-special" width="144" height="86" style="left:176px;top:64px" role="img" aria-label="スペシャルステージの地図"></canvas>
+  <div class="a sp-head" style="left:20px;top:160px;width:300px">
+    <h3><span class="en">SPECIAL</span> 砂のとりで</h3>
+    <p class="lv">スペシャル <span class="stars" aria-label="星5つ">★★★★★</span>　あいては、いちばん強い</p>
+    <p class="desc">壁は砂でできていて、撃つとくずれる。アイテムが出ることも。とりでをほって陣地へ。</p>
+  </div>
+  <section class="a box tint fs9" style="left:20px;top:236px;width:292px">
+    <h3 class="box-h">砂のかべ</h3>
+    <p>砂のブロックは撃つと少しずつけずれ、ふつうの弾なら3回当てるとくずれます。くずれた所は、通れる道に。ロングバレルは砂をつらぬいて、一直線にまとめてくずします。岩のブロックは、くずれません。中央の陣地は、砂のとりでの中。まずは、ほって入ろう。</p>
+  </section>
+  <section class="a box tint2 fs9" style="left:20px;top:344px;width:292px">
+    <h3 class="box-h">アイテムのありか</h3>
+    <p>金色に光る砂ブロックには、かならずアイテムが入っています（はじめは1〜2こ）。こわすと20秒たって、別の場所が光ります。光らないブロックにも、ときどき、かくれていることが。アイテムの場所は試合ごとにかわります。あいても、光るブロックをねらってくるよ。</p>
+  </section>
+  <span class="nombre">★</span>
+</section>
+
+<section class="page R c4 secret" id="sp2" data-label="ひみつ2" data-title="アイテム図鑑">
+  <header class="band nob"><h2>アイテム図鑑</h2></header>
+  <div class="a items" style="left:22px;top:66px;width:298px">
+    <article class="itm"><header><canvas class="px iicon" data-spr="item_dash" data-pal="danger" width="16" height="16" aria-hidden="true"></canvas><h3>ダッシュぐつ</h3></header><p class="eff">8秒間、あしが1.5倍に。水たまりでも、おそくならない。</p></article>
+    <article class="itm"><header><canvas class="px iicon" data-spr="item_nozzle" data-pal="gold" width="16" height="16" aria-hidden="true"></canvas><h3>ジャンボノズル</h3></header><p class="eff">8秒間、どこでも攻撃×2。弾は金色に。陣地の×2とは重ならない。</p></article>
+    <article class="itm"><header><canvas class="px iicon" data-spr="item_coat" data-pal="self" width="16" height="16" aria-hidden="true"></canvas><h3>レインコート</h3></header><p class="eff">5秒間、撃たれてもダメージなし。ひるみもしない。</p></article>
+    <article class="itm"><header><canvas class="px iicon" data-spr="item_endless" data-pal="blue" width="16" height="16" aria-hidden="true"></canvas><h3>むげんタンク</h3></header><p class="eff">8秒間、撃っても水がへらない。どの武器も撃ちほうだい。</p></article>
+    <article class="itm"><header><canvas class="px iicon" data-spr="item_bucket" data-pal="blue" width="16" height="16" aria-hidden="true"></canvas><h3>バケツ</h3></header><p class="eff">すぐに、タンクがまんタン。水たまりまで、もどらなくていい。</p></article>
+    <article class="itm"><header><canvas class="px iicon" data-spr="item_heal" data-pal="neutral" width="16" height="16" aria-hidden="true"></canvas><h3>ばんそうこう</h3></header><p class="eff">体力が50回復（100まで）。ピンチのときに、うれしい。</p></article>
+  </div>
+  <p class="a fs9" style="left:28px;top:418px;width:292px">アイテムは、歩いて重なると取れます。ききめがつづくあいだは、画面の下に、のこりの秒数が出ます。あいても取りにくるので、はやいもの勝ち！</p>
+  <span class="nombre">★</span>
 </section>
 
 <!-- ================================================================ p18 -->

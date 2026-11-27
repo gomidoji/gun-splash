@@ -447,6 +447,22 @@ body.mode-text .dodge { display: none; }
 .stg .stars { color: var(--c-gold); letter-spacing: .05em; }
 .stg-foot p.tut { font-weight: 700; }
 
+/* ---------------------------------------------------------------- ひみつ1 / ひみつ2: the special stage's spread */
+.sp-map { width: 144px; height: 86px; border: 1px solid var(--ink); }
+.sp-head h3 { font: 700 13px/19px "BIZ UDPGothic", sans-serif; }
+.sp-head h3 .en { color: var(--spot); margin-right: 4px; }
+.sp-head .lv { font: 700 10px/16px "BIZ UDPGothic", sans-serif; }
+.sp-head .stars { color: var(--c-gold); letter-spacing: .05em; }
+.sp-head .desc { font-size: 10px; line-height: 16px; }
+.items { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.itm { height: 108px; padding: 5px 7px; border: 1.5px solid var(--ink); border-radius: 6px; background: var(--paper); }
+.itm header { display: flex; align-items: center; gap: 6px; height: 36px; }
+.itm .iicon { width: 32px; height: 32px; flex: none; background: #182848; border-radius: 4px; }
+.itm h3 { font: 11px/16px "Dela Gothic One", sans-serif; white-space: nowrap; }
+.itm h3 .rt { font-family: "BIZ UDPGothic", sans-serif; font-weight: 700; }
+.itm .eff { font-size: 9px; line-height: 15px; margin-top: 4px; }
+.toc .new { margin-left: 6px; padding: 0 3px; border-radius: 3px; background: var(--c-red); color: var(--paper); font: 700 8px/12px "BIZ UDPGothic", sans-serif; vertical-align: 2px; }
+
 /* ---------------------------------------------------------------- p17 */
 .fl { float: left; margin: 0 8px 2px 0; }
 .res-shots { display: flex; justify-content: space-between; margin-bottom: 3px; }

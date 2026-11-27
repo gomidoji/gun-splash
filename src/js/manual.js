@@ -30,12 +30,40 @@
   const PAGES = ['cover1', 'cover2'];
   for (let i = 1; i <= 20; i++) PAGES.push('p' + i);
   PAGES.push('cover3', 'cover4');
-  const ALL = PAGES.concat(['extra']);
   const SPREADS = [['cover1'], ['cover2', 'p1']];
   for (let n = 2; n <= 18; n += 2) SPREADS.push(['p' + n, 'p' + (n + 1)]);
   SPREADS.push(['p20', 'cover3'], ['cover4'], ['extra']);
+  // ひみつ: the special stage's spread (sp1 ひみつ1, sp2 ひみつ2), bound in after p.17 once the special stage is open.
+  // Closed, its pages and their もくじ line are taken out before anything else reads the pages, so no view, thumbnail
+  // or text mode shows them. Open: the もくじ grows by one 22px line, so Ao moves 12px down, clear of both the もくじ
+  // (ending at 394) and the nombre (from 463).
+  const SECRET = ['sp1', 'sp2'];
+  // the game's own word when the manual sits in its iframe (GS.app.stageOpen, ?unlock=1 included), else the progress
+  // the game saved (5: the special stage's number)
+  function specialOpen() {
+    try {
+      const app = window.parent !== window && window.parent.GS && window.parent.GS.app;
+      if (app && typeof app.stageOpen === 'function') return !!app.stageOpen('special');
+    } catch (e) { /* a parent of another origin */ }
+    return (GS.loadPrefs('gs-progress-v1', { opened: 1 }).opened | 0) >= 5;
+  }
+  const secretOpen = specialOpen();
+  if (secretOpen) {
+    PAGES.splice(PAGES.indexOf('p17') + 1, 0, ...SECRET);
+    SPREADS.splice(SPREADS.findIndex(v => v[1] === 'p17') + 1, 0, SECRET);
+    const ao = document.querySelector('#p1 .ao'); if (ao) ao.style.top = (parseFloat(ao.style.top) + 12) + 'px';
+  } else {
+    SECRET.forEach(id => { const e = document.getElementById(id); if (e) e.remove(); });
+    const line = document.querySelector('#p1 .toc-secret'); if (line) line.remove();
+  }
+  // The game keeps this manual loaded once opened: when the special stage opens meanwhile, the next opening (a page
+  // jump or the focus coming back) reloads it, with the spread bound in.
+  const recheckSecret = () => { if (specialOpen() !== secretOpen) location.reload(); };
+  window.addEventListener('hashchange', recheckSecret);
+  window.addEventListener('focus', recheckSecret);
+  const ALL = PAGES.concat(['extra']);
   const SINGLES = ALL.map(p => [p]);
-  const label = id => (id === 'extra' ? '付録' : id.indexOf('cover') === 0 ? '表' + id.slice(5) : 'p.' + id.slice(1));
+  const label = id => (id === 'extra' ? '付録' : id.indexOf('cover') === 0 ? '表' + id.slice(5) : SECRET.includes(id) ? 'ひみつ' + id.slice(2) : 'p.' + id.slice(1));
   function viewLabel(v) {
     if (v.length === 1) return label(v[0]);
     const a = v[0], b = v[1];
@@ -115,6 +143,8 @@
     '利用': 'りよう', '理由': 'りゆう', '両手': 'りょうて', '両方': 'りょうほう', '冷静': 'れいせい', '連射': 'れんしゃ',
     '大図鑑': 'だいずかん', '気持': 'きも', '試合開始': 'しあいかいし', '試合開始時': 'しあいかいしじ', '三本': 'さんぼん',
     '路地': 'ろじ',
+    // ひみつ (the special stage's spread)
+    '砂': 'すな', '岩': 'いわ', '光る': 'ひか', '光ら': 'ひか', '光り': 'ひか', '一直線': 'いっちょくせん', '図鑑': 'ずかん',
   };
   const RUBY_BY_FIRST = new Map();
   Object.keys(RUBY).forEach(k => { const a = RUBY_BY_FIRST.get(k[0]) || []; a.push(k); RUBY_BY_FIRST.set(k[0], a); });
@@ -443,6 +473,18 @@
       S.orange.ys.forEach(y => GS.actor(c, S.orange.x * sc, y * sc, { team: 'orange', faceLeft: true, aimDir16: 8, tank: 4 }));
       return true;
     },
+    // ひみつ1: the special stage at the canvas's width (144x86 = 0.12), sand and all, the spawn points as 2x2 dots
+    'map-special'(cv) {
+      const st = stageData() && GS.stage('special');
+      if (!st || !st.special) return false;
+      const sc = cv.width / 1200, c = ctxOf(cv);
+      drawStageMap(c, 'special', sc);
+      GS.drawBlocks(c, st.blocks, 0, 0, sc, 0);
+      GS.drawPumps(c, 'special', null, 0, 0, sc, 0);
+      GS.drawZone(c, 0, 0, sc, 'neutral', 0);
+      spawnDots(c, sc);
+      return true;
+    },
     'weak-icon'(cv) {
       const c = ctxOf(cv); GS.rect(c, 0, 0, 16, 16, 'band');
       GS.spr(c, 'bullet_weak', 2, 6, { pal: 'blue' }); GS.spr(c, 'bullet_weak', 7, 6, { pal: 'blue' }); GS.spr(c, 'bullet_weak', 12, 6, { pal: 'blue' });
@@ -457,12 +499,16 @@
       drawStageMap(c, id, sc);
       GS.drawPumps(c, id, null, 0, 0, sc, 0);
       GS.drawZone(c, 0, 0, sc, 'neutral', 0);
-      const S = GS.SPAWN;
-      S.blue.ys.forEach(y => GS.rect(c, R(S.blue.x * sc) - 1, R(y * sc) - 1, 2, 2, 'blue'));
-      S.orange.ys.forEach(y => GS.rect(c, R(S.orange.x * sc) - 1, R(y * sc) - 1, 2, 2, 'orange'));
+      spawnDots(c, sc);
       return true;
     };
   });
+  // the spawn points on a small map: 2x2 dots in the team colours
+  function spawnDots(c, sc) {
+    const S = GS.SPAWN;
+    S.blue.ys.forEach(y => GS.rect(c, R(S.blue.x * sc) - 1, R(y * sc) - 1, 2, 2, 'blue'));
+    S.orange.ys.forEach(y => GS.rect(c, R(S.orange.x * sc) - 1, R(y * sc) - 1, 2, 2, 'orange'));
+  }
   function mark(cv, a) {
     const c = ctxOf(cv); ground(c, 28, 28, 'g1a', 'g1b');
     GS.actor(c, 14, 13, Object.assign({ aimDir16: 0 }, a));
