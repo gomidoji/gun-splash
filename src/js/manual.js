@@ -33,11 +33,13 @@
   const SPREADS = [['cover1'], ['cover2', 'p1']];
   for (let n = 2; n <= 18; n += 2) SPREADS.push(['p' + n, 'p' + (n + 1)]);
   SPREADS.push(['p20', 'cover3'], ['cover4'], ['extra']);
-  // ひみつ: the special stage's spread (sp1 ひみつ1, sp2 ひみつ2), bound in after p.17 once the special stage is open.
-  // Closed, its pages and their もくじ line are taken out before anything else reads the pages, so no view, thumbnail
-  // or text mode shows them. Open: the もくじ grows by one 22px line, so Ao moves 12px down, clear of both the もくじ
-  // (ending at 394) and the nombre (from 463).
-  const SECRET = ['sp1', 'sp2'];
+  // ひみつ: the special stage's spread (sp1 ひみつ1, sp2 ひみつ2) after p.17, a 袋とじ (sealed pages). Until the special
+  // stage opens, a seal covers both pages and says how to open it; once it is open, the seal shows a pull tab, and a
+  // tap tears it off (tearSeal). This browser remembers the tear (SEAL_KEY); when the stage is closed again (the
+  // progress was reset) the spread is sealed again.
+  const SECRET = ['sp1', 'sp2'], SEAL_KEY = 'gs-manual-seal-v1';
+  PAGES.splice(PAGES.indexOf('p17') + 1, 0, ...SECRET);
+  SPREADS.splice(SPREADS.findIndex(v => v[1] === 'p17') + 1, 0, SECRET);
   // the game's own word when the manual sits in its iframe (GS.app.stageOpen, ?unlock=1 included), else the progress
   // the game saved (5: the special stage's number)
   function specialOpen() {
@@ -48,16 +50,29 @@
     return (GS.loadPrefs('gs-progress-v1', { opened: 1 }).opened | 0) >= 5;
   }
   const secretOpen = specialOpen();
-  if (secretOpen) {
-    PAGES.splice(PAGES.indexOf('p17') + 1, 0, ...SECRET);
-    SPREADS.splice(SPREADS.findIndex(v => v[1] === 'p17') + 1, 0, SECRET);
-    const ao = document.querySelector('#p1 .ao'); if (ao) ao.style.top = (parseFloat(ao.style.top) + 12) + 'px';
-  } else {
-    SECRET.forEach(id => { const e = document.getElementById(id); if (e) e.remove(); });
-    const line = document.querySelector('#p1 .toc-secret'); if (line) line.remove();
+  const seal = GS.loadPrefs(SEAL_KEY, { torn: false });
+  if (!secretOpen && seal.torn) { seal.torn = false; GS.savePrefs(SEAL_KEY, seal); }
+  // The seal on both pages: sealed, the content under it inert and hidden from readers, the page titles ふくろとじ;
+  // tearable (the pull tab) once the special stage is open. The もくじ line follows (ふくろとじ / NEW).
+  function setSealed(sealed) {
+    SECRET.forEach(id => {
+      const p = document.getElementById(id); if (!p) return;
+      p.classList.toggle('sealed', sealed);
+      p.classList.toggle('tearable', sealed && secretOpen);
+      for (const e of p.children) {
+        if (e.classList.contains('seal')) continue;
+        e.inert = sealed;
+        if (sealed) e.setAttribute('aria-hidden', 'true'); else e.removeAttribute('aria-hidden');
+      }
+      p.dataset.realTitle ||= p.dataset.title;
+      p.dataset.title = sealed ? 'ふくろとじ' : p.dataset.realTitle;
+    });
+    const line = document.querySelector('#p1 .toc-secret');
+    if (line) line.classList.toggle('sealed', sealed);
   }
-  // The game keeps this manual loaded once opened: when the special stage opens meanwhile, the next opening (a page
-  // jump or the focus coming back) reloads it, with the spread bound in.
+  setSealed(!seal.torn);
+  // The game keeps this manual loaded once opened: when the special stage opens (or closes) meanwhile, the next
+  // opening (a page jump or the focus coming back) reloads it, with the seal as it should be.
   const recheckSecret = () => { if (specialOpen() !== secretOpen) location.reload(); };
   window.addEventListener('hashchange', recheckSecret);
   window.addEventListener('focus', recheckSecret);
@@ -835,6 +850,24 @@
   // thumbnails (the two-page spreads + the single covers + the appendix)
   // =====================================================================
   let thumbsDirty = true;
+  // The pull tab: a rip runs down the perforation, then the seal falls away from both pages (manual.css; reduced
+  // motion: it is gone at once). The pages are readable from then on, here and in the thumbnails.
+  let tearing = false;
+  function tearSeal() {
+    if (tearing || !secretOpen || seal.torn) return;
+    tearing = true;
+    seal.torn = true; GS.savePrefs(SEAL_KEY, seal);
+    const pages = SECRET.map(id => document.getElementById(id)).filter(Boolean);
+    const done = () => {
+      pages.forEach(p => p.classList.remove('tearing'));
+      setSealed(false);
+      tearing = false; thumbsDirty = true;
+      setTimeout(drawLeaders, 0);
+    };
+    if (reduced()) { done(); return; }
+    pages.forEach(p => p.classList.add('tearing'));
+    setTimeout(done, 1200);
+  }
   function buildThumbs() {
     const grid = $('#mv-thumb-grid'); grid.textContent = '';
     SPREADS.forEach(v => {
@@ -893,6 +926,7 @@
       case 'prev': step(-1); break;
       case 'next': step(1); break;
       case 'toc': closeThumbs(); show('p1', { dir: -1 }); break;
+      case 'tear': tearSeal(); break;
       case 'thumbs': if (thumbsEl.hidden) openThumbs(); else closeThumbs(); break;
       case 'thumbs-close': closeThumbs(); break;
       case 'ruby': prefs.ruby = !prefs.ruby; savePrefs(); applyPrefs(); syncUi(); setTimeout(drawLeaders, 0); thumbsDirty = true; break;

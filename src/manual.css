@@ -461,7 +461,49 @@ body.mode-text .dodge { display: none; }
 .itm h3 { font: 11px/16px "Dela Gothic One", sans-serif; white-space: nowrap; }
 .itm h3 .rt { font-family: "BIZ UDPGothic", sans-serif; font-weight: 700; }
 .itm .eff { font-size: 9px; line-height: 15px; margin-top: 4px; }
-.toc .new { margin-left: 6px; padding: 0 3px; border-radius: 3px; background: var(--c-red); color: var(--paper); font: 700 8px/12px "BIZ UDPGothic", sans-serif; vertical-align: 2px; }
+.toc .new, .toc .lock { margin-left: 6px; padding: 0 3px; border-radius: 3px; background: var(--c-red); color: var(--paper); font: 700 8px/12px "BIZ UDPGothic", sans-serif; vertical-align: 2px; }
+.toc .lock { background: var(--ink); }
+.toc-secret .lock, .toc-secret.sealed .new { display: none; }
+.toc-secret.sealed .lock { display: inline; }
+.toc-secret .n::after { content: "★"; }
+.toc-secret.sealed .n::after { content: "？"; }
+
+/* 袋とじ: the seal over the secret spread (manual.js setSealed / tearSeal). A striped paper flap with the
+   perforation along the page's outer edge; tearable, it shows the pull tab instead of how to open it. Tearing: a rip
+   runs down the perforation (.45 s), then the flap falls away from it (.7 s). */
+.seal { display: none; position: absolute; inset: 0; z-index: 6; overflow: hidden; }
+.page.sealed .seal { display: block; }
+.page.sealed > :not(.seal) { visibility: hidden; }
+.page.sealed.tearing > :not(.seal) { visibility: visible; }   /* the pages show as the flap falls away */
+.seal .flap {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+  text-align: center; background: repeating-linear-gradient(135deg, #E8DCBC 0 9px, #DED0AA 9px 18px);
+}
+.seal .perf { position: absolute; top: 0; bottom: 0; border-left: 2px dashed var(--ink); opacity: .55; }
+.seal .rip { position: absolute; top: 0; height: 0; width: 3px; background: var(--ink); box-shadow: 2px 0 0 #FFFFFF99; }
+.L .seal .perf { left: 18px; } .L .seal .rip { left: 17px; }
+.R .seal .perf { right: 18px; } .R .seal .rip { right: 17px; }
+.seal-q { width: 72px; height: 72px; border: 3px solid var(--ink); border-radius: 50%; background: var(--c-catch); font: 44px/68px "Dela Gothic One", sans-serif; }
+.seal-h { font: 28px/34px "Dela Gothic One", sans-serif; letter-spacing: .12em; }
+.seal-lock { font: 800 13px/21px "M PLUS Rounded 1c", "BIZ UDPGothic", sans-serif; }
+.seal-lock .rt { font-family: "M PLUS Rounded 1c", sans-serif; font-weight: 800; }
+.seal-tab {
+  display: none; padding: 6px 14px; border: 2px solid var(--ink); border-radius: 18px; background: var(--paper); color: var(--ink);
+  font: 800 13px/18px "M PLUS Rounded 1c", "BIZ UDPGothic", sans-serif; cursor: pointer; animation: seal-nudge 1.8s ease-in-out infinite;
+}
+.seal-tab:focus-visible { outline: 2px solid var(--spot); outline-offset: 2px; }
+.page.tearable .seal-tab { display: inline-block; }
+.page.tearable .seal-lock { display: none; }
+.page.tearing .seal-tab { visibility: hidden; }
+.page.tearing .seal .rip { animation: seal-rip .45s linear forwards; }
+.L.tearing .seal .flap { animation: seal-fall-l .7s ease-in .45s forwards; }
+.R.tearing .seal .flap { animation: seal-fall-r .7s ease-in .45s forwards; }
+.th-pic .seal-tab { animation: none; }
+@keyframes seal-nudge { 0%, 72%, 100% { transform: none; } 80% { transform: rotate(-5deg); } 90% { transform: rotate(5deg); } }
+@keyframes seal-rip { to { height: 100%; } }
+@keyframes seal-fall-l { to { transform: translate(70px, 540px) rotate(16deg); opacity: 0; } }
+@keyframes seal-fall-r { to { transform: translate(-70px, 540px) rotate(-16deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .seal-tab { animation: none; } }
 
 /* ---------------------------------------------------------------- p17 */
 .fl { float: left; margin: 0 8px 2px 0; }
@@ -611,6 +653,11 @@ body.mode-text .fig { float: none; margin: 6px 0; }
 body.mode-text canvas.shot { width: min(100%, 360px) !important; height: auto !important; aspect-ratio: 4 / 3; }
 
 body.mode-text .card, body.mode-text .stg { width: auto; height: auto; outline: none; margin-bottom: 10px; }
+/* 袋とじ in text mode: only the seal's words (and the pull tab), the pages under it left out */
+body.mode-text .page.sealed > :not(.seal) { display: none !important; }
+body.mode-text .seal, body.mode-text .seal .flap { position: static; display: block; background: none; text-align: left; }
+body.mode-text .page:not(.sealed) .seal, body.mode-text .seal :is(.perf, .rip, .seal-q) { display: none !important; }
+body.mode-text .itm, body.mode-text .items { display: block; height: auto; margin-bottom: 10px; }
 body.mode-text .cards, body.mode-text .stages, body.mode-text .team-row, body.mode-text .res-shots, body.mode-text .pumpsteps, body.mode-text .mk, body.mode-text .edges { display: block; }
 body.mode-text .mate { text-align: left; margin-bottom: 8px; }
 body.mode-text .mate .bust { margin: 0; }

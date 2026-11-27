@@ -89,12 +89,12 @@
     <a href="#p14"><span class="t">水鉄砲大図鑑</span><i class="dots"></i><span class="n">14</span></a>
     <a href="#p16"><span class="t">ステージ紹介</span><i class="dots"></i><span class="n">16</span></a>
     <a href="#p17"><span class="t">一時停止とリザルト</span><i class="dots"></i><span class="n">17</span></a>
-    <a href="#sp1" class="toc-secret"><span class="t">ひみつのページ<b class="new">NEW</b></span><i class="dots"></i><span class="n">★</span></a>
+    <a href="#sp1" class="toc-secret"><span class="t">ひみつのページ<b class="new">NEW</b><b class="lock">ふくろとじ</b></span><i class="dots"></i><span class="n"></span></a>
     <a href="#p18"><span class="t">勝つためのヒント</span><i class="dots"></i><span class="n">18</span></a>
     <a href="#p19"><span class="t">メッセージ早見表</span><i class="dots"></i><span class="n">19</span></a>
     <a href="#p20"><span class="t en">MEMO</span><i class="dots"></i><span class="n">20</span></a>
   </nav>
-  <div class="a ao ao-r" style="left:96px;top:384px;width:224px">
+  <div class="a ao ao-r" style="left:96px;top:396px;width:224px">
     <p class="bubble b-left">読みたいページから<br>読んでね！</p>
     <canvas class="px ao-face" data-spr="bust_ready" data-pal="blue" width="32" height="32" role="img" aria-label="アオ"></canvas>
   </div>
@@ -517,9 +517,18 @@
   <span class="nombre">17</span>
 </section>
 
-<!-- ================================================================ ひみつ1, ひみつ2: the special stage's spread, bound in after
-     p.17 only once the special stage is open (manual.js takes these pages out until then) -->
+<!-- ================================================================ ひみつ1, ひみつ2: the special stage's spread after p.17, a
+     袋とじ: a seal covers it until the special stage is open and the reader tears it (manual.js setSealed / tearSeal) -->
 <section class="page L c4 secret" id="sp1" data-label="ひみつ1" data-title="スペシャルステージ">
+  <div class="seal">
+    <div class="flap">
+      <p class="seal-q" aria-hidden="true">？</p>
+      <p class="seal-h">ふくろとじ</p>
+      <p class="seal-lock">上級で勝つと<br>やぶれるよ</p>
+      <button type="button" class="seal-tab" data-act="tear">ここから やぶってね ✂</button>
+    </div>
+    <i class="perf" aria-hidden="true"></i><i class="rip" aria-hidden="true"></i>
+  </div>
   <header class="band"><span class="badge" role="img" aria-label="ひみつ"><b>？</b></span><h2>スペシャルステージ</h2></header>
   <p class="a catch">上級で勝った<br>きみへの、ひみつ！</p>
   <canvas class="a px sp-map" data-art="map-special" width="144" height="86" style="left:176px;top:64px" role="img" aria-label="スペシャルステージの地図"></canvas>
@@ -540,6 +549,14 @@
 </section>
 
 <section class="page R c4 secret" id="sp2" data-label="ひみつ2" data-title="アイテム図鑑">
+  <div class="seal">
+    <div class="flap">
+      <p class="seal-h">ひみつ</p>
+      <p class="seal-lock">この先は、上級で勝った<br>きみだけが読めるページ</p>
+      <button type="button" class="seal-tab" data-act="tear">ここから やぶってね ✂</button>
+    </div>
+    <i class="perf" aria-hidden="true"></i><i class="rip" aria-hidden="true"></i>
+  </div>
   <header class="band nob"><h2>アイテム図鑑</h2></header>
   <div class="a items" style="left:22px;top:66px;width:298px">
     <article class="itm"><header><canvas class="px iicon" data-spr="item_dash" data-pal="danger" width="16" height="16" aria-hidden="true"></canvas><h3>ダッシュぐつ</h3></header><p class="eff">8秒間、あしが1.5倍に。水たまりでも、おそくならない。</p></article>
