@@ -17,9 +17,32 @@ export const WEAPONS = Object.freeze([
   Object.freeze({ id: 'splash', name: 'スプラッシュ', range: 120, damage: 6, interval: .8, cost: 15, pellets: 5, spread: .56, speed: 470, pierce: false }),
   Object.freeze({ id: 'long', name: 'ロングバレル', range: 1400, damage: 45, interval: 15, cost: 25, pellets: 1, spread: 0, speed: 100000, pierce: true }),
 ]);
-export const selectedWeapon = a => WEAPONS.find(w => w.id === a.weapon) || WEAPONS[0];
-export const hasWeaponWater = a => a.water >= selectedWeapon(a).cost - 1e-8;
-export const shotRange = a => hasWeaponWater(a) ? selectedWeapon(a).range : CONFIG.weakRange;
+// Sand (the special stage): a block that stands like a wall until shots wear its hp down. dig: what a sand cell adds
+// to a bot's route cost (px of walking), the time and water it takes to shoot through.
+export const SAND = Object.freeze({ hp: 18, dig: 200 });
+// Items lie in some sand blocks and drop when the block breaks; walking over one takes it. Where they lie changes with
+// every match: one or two blocks glow (an item for sure), and any other block may hide one. time: seconds the effect
+// lasts (0 = at once). dash: speed x1.5, puddles do not slow; nozzle: attack x2 anywhere (the zone's x2, not on top
+// of it); coat: shots do no damage; endless: shots cost no water; bucket: the tank fills up; heal: HP +50.
+export const ITEMS = Object.freeze([
+  Object.freeze({ id: 'dash', name: 'ダッシュぐつ', time: 8 }),
+  Object.freeze({ id: 'nozzle', name: 'ジャンボノズル', time: 8 }),
+  Object.freeze({ id: 'coat', name: 'レインコート', time: 5 }),
+  Object.freeze({ id: 'endless', name: 'むげんタンク', time: 8 }),
+  Object.freeze({ id: 'bucket', name: 'バケツ', time: 0 }),
+  Object.freeze({ id: 'heal', name: 'ばんそうこう', time: 0 }),
+]);
+// reach: px beyond the body radius that picks an item up; glow: the most glowing blocks at the start (1 or 2, at
+// random); hidden: the chance that a block that does not glow hides an item; relight: seconds after a glowing block
+// breaks until another block, picked at random, starts to glow
+export const ITEM_RULES = Object.freeze({ dashSpeed: 1.5, heal: 50, reach: 12, glow: 2, hidden: .1, relight: 20 });
+const weaponById = id => WEAPONS.find(w => w.id === id) || WEAPONS[0];
+export const selectedWeapon = a => weaponById(a.weapon);
+// The water a paid shot of weapon `id` (default: a's own) takes from a: nothing while the endless tank (item) lasts.
+// The checks below take the weapon too, so a caller asks about another weapon with the real actor.
+export const shotCost = (a, id = a.weapon) => a.buffs?.endless > 0 ? 0 : weaponById(id).cost;
+export const hasWeaponWater = (a, id = a.weapon) => a.water >= shotCost(a, id) - 1e-8;
+export const shotRange = (a, id = a.weapon) => hasWeaponWater(a, id) ? weaponById(id).range : CONFIG.weakRange;
 export const weaponWait = a => Math.max(a.cooldown, a.weaponCooldowns[a.weapon], a.recoil);
 export const OBSTACLES = [
   // Rotational pairs give both teams identical approaches, with staggered crossfire lanes.
@@ -45,11 +68,38 @@ const placePools = (positions, phases, compact = false) => PUDDLES.map((p,i) => 
   ...(compact && i >= 2 ? {rx:110, ry:55} : {}),
   x:positions[i][0], y:positions[i][1], angle:positions[i][2] ?? p.angle, phase:phases[Math.floor(i / 2)],
 }));
+// A grid stage is laid out on 48 px cells (25 x 15, rows from the top): R rock (a wall that never breaks), S sand
+// (breaks when shot), anything else open ground.
+export const CELL = 48;
+const gridCells = (rows, ch) => rows.flatMap((row, r) => [...row].flatMap((cell, c) => cell === ch
+  ? [{ x: c * CELL, y: r * CELL, w: CELL, h: CELL }] : []));
+// The special stage: the zone sits in a fort of sand with rock corners, so it has to be dug open. A sand hedge stands
+// in front of each spawn, rock pillars behind it; the home pools lie in the corners beside the spawns, the big pools
+// above and below the fort. Rotationally symmetric like every stage (the items are not: see ITEMS).
+const SAND_FORT = [
+  '.........................',
+  '.....S...................',
+  '.................R..S....',
+  '.........................',
+  '........SSS........SSS...',
+  '......S...RSSSR..........',
+  '......SR..S...S..RS......',
+  '......S...S...S...S......',
+  '......SR..S...S..RS......',
+  '..........RSSSR...S......',
+  '...SSS........SSS........',
+  '.........................',
+  '....S..R.................',
+  '...................S.....',
+  '.........................',
+];
 export const AI_LEVELS = [
   {reaction: .65, error: 1.5, burst: .55, rest: 1.05, aim: 1.1, longGap: 9, tactics: false, dodge: false, focus: 0},
   {reaction: .45, error: 1.25, burst: .85, rest: .7, aim: .8, longGap: 6, tactics: false, dodge: true, focus: 0},
   {reaction: .22, error: 1, burst: 1.4, rest: .25, aim: .3, longGap: 3, tactics: true, dodge: true, focus: 45},
   {reaction: .14, error: .7, burst: 1.7, rest: .15, aim: .3, longGap: 1.5, tactics: true, dodge: true, focus: 80},
+  // the special stage (CPU ★5): a step past the advanced bots, with every advanced habit (difficulty >= 3)
+  {reaction: .1, error: .55, burst: 2, rest: .1, aim: .25, longGap: 1.2, tactics: true, dodge: true, focus: 100},
 ];
 export const STAGES = [
   {id:'tutorial', name:'はじまりの中庭', level:'入門', difficulty:0, description:'水辺を通って中央へ。短い壁と広い道の、穏やかな中庭。',
@@ -74,9 +124,15 @@ export const STAGES = [
       {x:300,y:470,w:28,h:220},{x:30,y:470,w:170,h:28},{x:340,y:290,w:28,h:120},{x:590,y:130,w:28,h:120}]),
     pools:placePools([[165,595,0],[1035,125,Math.PI],[255,112,0],[945,608,Math.PI]], [2.4, 4.1], true),
     taps:[[275,515],[925,205],[470,162],[730,558]]},
+  // Opens after a win on every stage above (the stage order). Its walls are mostly sand and some sand holds items.
+  {id:'special', name:'砂のとりで', level:'スペシャル', difficulty:4, special:true, items:true,
+    description:'壁は砂でできていて、撃つとくずれる。アイテムが出ることも。とりでをほって陣地へ。',
+    grid:true, obstacles:gridCells(SAND_FORT, 'R'), blocks:gridCells(SAND_FORT, 'S'),
+    pools:placePools([[210,170,0],[990,550,Math.PI],[600,115,0],[600,605,Math.PI]], [1.7, 3.3], true),
+    taps:[[200,290],[1000,430],[400,110],[800,610]]},
 ];
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-export const hasWaterShot = a => a.water >= CONFIG.shotCost - 1e-8;
+export const hasWaterShot = a => hasWeaponWater(a, 'normal');
 export const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 // Positional risk is independent of team ownership and is evaluated for each impact.
 export const incomingDamageMultiplier = a => a?.alive && (distance(a, ZONE) <= ZONE.r || a.tapId != null) ? CONFIG.vulnerableDamageMultiplier : 1;
@@ -134,10 +190,22 @@ function segmentCircle(a, b, c, radius) {
   return t >= 0 && t <= 1 ? t : null;
 }
 export const clearPath = (a, b, pad = 0, obstacles = OBSTACLES) => !obstacles.some(o => segmentRect(a, b, o, pad) !== null);
+// The first rect of `list` that the segment a -> p (widened by pad) runs into, or null; `skip` leaves rects out.
+function firstHit(list, a, p, pad, skip) {
+  let best = null, bestT = Infinity;
+  for (const o of list) {
+    if (skip && skip(o)) continue;
+    const t = segmentRect(a, p, o, pad);
+    if (t !== null && t < bestT) { best = o; bestT = t; }
+  }
+  return best;
+}
+const centerOf = o => ({ x: o.x + o.w / 2, y: o.y + o.h / 2 });
+// Where a long-barrel beam from a ends: at a wall (it goes through sand, as advanceBullets does) or the arena edge.
 export function longRayEnd(a, aim, obstacles = a.obstacles || OBSTACLES) {
   const dx = Math.cos(aim) * WEAPONS[2].range, dy = Math.sin(aim) * WEAPONS[2].range;
   const end = { x: a.x + dx, y: a.y + dy }; let fraction = 1;
-  for (const o of obstacles) { const hit = segmentRect(a, end, o, 2); if (hit !== null) fraction = Math.min(fraction, hit); }
+  for (const o of obstacles) { if (o.sand) continue; const hit = segmentRect(a, end, o, 2); if (hit !== null) fraction = Math.min(fraction, hit); }
   for (const [start, delta, min, max] of [[a.x, dx, BULLET_MARGIN, CONFIG.width - BULLET_MARGIN],
     [a.y, dy, BULLET_MARGIN, CONFIG.height - BULLET_MARGIN]]) {
     if (delta > 0) fraction = Math.min(fraction, (max - start) / delta);
@@ -150,15 +218,57 @@ function validPosition(x, y, radius = CONFIG.radius, obstacles = OBSTACLES) {
     || y < WALK_MARGIN + radius || y > CONFIG.height - WALK_MARGIN - radius) return false;
   return !obstacles.some(o => x > o.x - radius && x < o.x + o.w + radius && y > o.y - radius && y < o.y + o.h + radius);
 }
-// A small navigation graph around the covers keeps the bots from walking into walls.
+// A small navigation graph around the covers keeps the bots from walking into walls. The edges are worked out when
+// first needed (a stage with many blocks has many corners, and its bots plan on the grid instead).
 const NAV_PADDING = CONFIG.radius - .25;
 function navigation(obstacles) {
   const NAV = obstacles.flatMap(o => {
     const m = CONFIG.radius + 7;
     return [{ x: o.x - m, y: o.y - m }, { x: o.x + o.w + m, y: o.y - m }, { x: o.x - m, y: o.y + o.h + m }, { x: o.x + o.w + m, y: o.y + o.h + m }];
   }).filter(p => validPosition(p.x, p.y, CONFIG.radius, obstacles));
-  const EDGES = NAV.map(a => NAV.map((b, i) => ({ i, d: distance(a, b) })).filter(e => e.d > 0 && clearPath(a, NAV[e.i], NAV_PADDING, obstacles)));
-  return { NAV, EDGES };
+  let edges = null;
+  return { NAV, get EDGES() {
+    return edges ||= NAV.map(a => NAV.map((b, i) => ({ i, d: distance(a, b) })).filter(e => e.d > 0 && clearPath(a, NAV[e.i], NAV_PADDING, obstacles)));
+  } };
+}
+// Shared by both route planners (terrainPaths, gridPaths). threatSignature: what their per-team cost cache depends
+// on (who, 30 px cell, charging); routeCaution: how hard a's route avoids exposure; routeLength: the walk from a
+// through points; noRoute: the answer for a target that cannot be reached.
+const threatSignature = threats => threats.map(b => `${b.id}:${Math.round(b.x / 30)}:${Math.round(b.y / 30)}:${b.charge > .4}`).join('|');
+const routeCaution = (a, urgent) => urgent ? .2 : a.water < 25 || a.hp < 35 ? 2.2 : 1.1;
+function routeLength(a, points) {
+  let length = 0, last = a;
+  for (const p of points) {
+    length += distance(last, p);
+    last = p;
+  }
+  return length;
+}
+const noRoute = () => ({ cost: Infinity, points: [], length: Infinity });
+// Binary min-heap of (cost, index) for the grid planner's Dijkstra.
+function minQueue() {
+  const cost = [], index = [];
+  const swap = (i, j) => { [cost[i], cost[j]] = [cost[j], cost[i]]; [index[i], index[j]] = [index[j], index[i]]; };
+  return {
+    size: () => cost.length,
+    push(c, i) {
+      cost.push(c); index.push(i);
+      for (let k = cost.length - 1; k > 0;) { const p = (k - 1) >> 1; if (cost[p] <= cost[k]) break; swap(p, k); k = p; }
+    },
+    pop() {
+      const top = index[0];
+      swap(0, cost.length - 1); cost.pop(); index.pop();
+      for (let k = 0; ;) {
+        const l = 2 * k + 1, r = l + 1;
+        let m = k;
+        if (l < cost.length && cost[l] < cost[m]) m = l;
+        if (r < cost.length && cost[r] < cost[m]) m = r;
+        if (m === k) break;
+        swap(m, k); k = m;
+      }
+      return top;
+    },
+  };
 }
 function nextWaypoint(start, target, nav, obstacles) {
   const {NAV, EDGES} = nav;
@@ -187,7 +297,15 @@ export class Game {
   reset(seed = this.seed, stageId = this.stage?.id ?? null) {
     this.stage = STAGES.find(s => s.id === stageId) || null;
     this.aiProfile = this.stage ? AI_LEVELS[this.stage.difficulty] : null;
-    this.obstacles = this.stage?.obstacles || OBSTACLES; this.nav = navigation(this.obstacles);
+    // solid: the walls that never break. Sand blocks stand among the obstacles (walking, shots, sight) until they
+    // break; then they leave the array in place, so everything holding it sees the change.
+    this.solid = this.stage?.obstacles || OBSTACLES;
+    // item: the kind it holds (or null); glow: it shows that it holds one
+    this.blocks = (this.stage?.blocks || []).map((b, id) => ({ id, x: b.x, y: b.y, w: b.w, h: b.h, sand: true,
+      hp: SAND.hp, hitFlash: 0, item: null, glow: false }));
+    this.obstacles = this.blocks.length ? [...this.solid, ...this.blocks] : this.solid;
+    this.nav = navigation(this.obstacles);
+    this.blockVersion = 0; this.items = []; this.nextItem = 0;
     this.seed = seed; this.random = randomGenerator(seed);
     this.state = 'ready'; this.time = 0; this.scores = [0, 0]; this.winner = null; this.reason = ''; this.finaleEndsAt = null;
     this.puddles = (this.stage?.pools || PUDDLES).map(p => ({ ...p, water: p.capacity === 100 ? 70 : 180 }));
@@ -204,8 +322,19 @@ export class Game {
         firing: false, lastShotWeak: false, lastShotWeapon: 'normal', weapon: 'normal', weaponCooldowns: { normal: 0, splash: 0, long: 0 }, refilling: false, refillAmount: 0, puddleId: null, slowFactor: 1,
         flinch: 0, fireLock: 0, flinchGuard: 0, recoil: 0, recoilAim: 0, charge: 0, chargeAim: 0, tapId: null,
         ai: { refill: role === 1, goal: null, think: 0, waypoint: null, pathTime: 0, avoidSupplyUntil: 0, lastHp: CONFIG.health, mode: 'objective', duty: 'advance', aimTime: 0, aimTarget: null, aimAngle: 0, longEscape: null, phase: this.random() * Math.PI * 2 },
+        buffs: { dash: 0, nozzle: 0, coat: 0, endless: 0 },   // seconds left of each item effect
         stats: { shots: 0, weakShots: 0, hits: 0, kills: 0, refilled: 0, capture: 0 } };
     });
+    // Items (a stage with items: true), new for every match: one or two blocks picked at random glow, and every other
+    // block hides one by a small chance; the kinds are at random too. relightAt: when a broken glowing block's
+    // successor lights up.
+    this.relightAt = [];
+    if (this.stage?.items && this.blocks.length) {
+      const glowing = 1 + Math.floor(this.random() * ITEM_RULES.glow);
+      for (let i = 0; i < glowing; i++) this.lightBlock();
+      for (const b of this.blocks) if (!b.item && this.random() < ITEM_RULES.hidden) b.item = this.randomItem();
+    }
+    this.grid = this.stage?.grid ? this.buildGrid() : null;
     this.bullets = []; this.effects = []; this.events = []; this.nextBullet = 0;
     this.combatEvents = []; this.combatSequence = 0;
     this.zoneOwner = null; this.contested = false; this.usedWater = 0; this.discardedWater = 0;
@@ -213,7 +342,10 @@ export class Game {
     this.initialTotalWater = this.actors.reduce((s, a) => s + a.water, 0) + this.remainingWater();
     this.teamSightings = [new Map(), new Map()];
     this.terrainCosts = [null, null];
-    // Stage AI graph: the cover navigation points, every pool center and four points around the objective.
+    // Stage AI graph: the cover navigation points, every pool center and four points around the objective. A grid
+    // stage plans on its cells instead (gridPaths).
+    this.terrainGraph = null;
+    if (this.grid) return;
     const nodes = [...this.nav.NAV, ...this.puddles.map(p => ({ x: p.x, y: p.y })),
       ...[-1, 1].flatMap(x => [-1, 1].map(y => ({ x: ZONE.x + x * 150, y: ZONE.y + y * 150 })))]
       .filter(p => this.validPosition(p.x, p.y));
@@ -223,6 +355,113 @@ export class Game {
         .map((b, i) => ({ i, d: distance(a, b), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } }))
         .filter(e => e.d > 0 && this.clearPath(a, nodes[e.i], NAV_PADDING)))
     };
+  }
+  // Cells of a grid stage: -2 closed (a rock, or the arena edge where no body fits), -1 open, else the index of the
+  // sand block in it (open once the block breaks).
+  buildGrid() {
+    const cols = Math.round(CONFIG.width / CELL), rows = Math.round(CONFIG.height / CELL);
+    const cell = new Int16Array(cols * rows).fill(-1);
+    for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+      if (!validPosition(c * CELL + CELL / 2, r * CELL + CELL / 2, CONFIG.radius, this.solid)) cell[r * cols + c] = -2;
+    }
+    this.blocks.forEach((b, i) => { cell[Math.floor(b.y / CELL) * cols + Math.floor(b.x / CELL)] = i; });
+    return { cols, rows, cell };
+  }
+  // How much the pools at p slow a body down (the mud of a route).
+  mudAt(p) { return this.puddles.reduce((m, w) => m + (insidePuddle(p, w) ? w.slow * w.water / w.capacity : 0), 0); }
+  // Grid stages: the same route planner as terrainPaths, on the cells (8 neighbours, no corner cutting). A cell's cost
+  // grows with exposure, mud and allies' routes as there; a sand cell also costs its digging (SAND.dig, twice that
+  // with too little water for paid shots). Rocks and the arena edge are closed.
+  gridPaths(a, threats, allies, urgent) {
+    const { cols, rows, cell } = this.grid, n = cols * rows;
+    const center = i => ({ x: (i % cols) * CELL + CELL / 2, y: Math.floor(i / cols) * CELL + CELL / 2 });
+    const cellOf = p => clamp(Math.floor(p.y / CELL), 0, rows - 1) * cols + clamp(Math.floor(p.x / CELL), 0, cols - 1);
+    // Risk and mud per cell are cached per team for .7 s, or until the known threats or the sand change.
+    const signature = threatSignature(threats) + '#' + this.blockVersion;
+    let cache = this.terrainCosts[a.team];
+    if (!cache || this.time - cache.time > .7 || cache.signature !== signature) {
+      const risk = new Float32Array(n), mud = new Float32Array(n);
+      for (let i = 0; i < n; i++) if (cell[i] !== -2) {
+        const p = center(i);
+        risk[i] = this.terrainRisk(p, threats);
+        mud[i] = this.mudAt(p);
+      }
+      cache = this.terrainCosts[a.team] = { time: this.time, signature, risk, mud };
+    }
+    const crowd = new Float32Array(n);
+    if (!urgent) for (const b of allies) for (const q of b.ai.route?.points || []) {
+      if (distance(q, ZONE) <= 100) continue;
+      const qc = Math.floor(q.x / CELL), qr = Math.floor(q.y / CELL);
+      for (let r = Math.max(0, qr - 2); r <= Math.min(rows - 1, qr + 2); r++) for (let c = Math.max(0, qc - 2); c <= Math.min(cols - 1, qc + 2); c++) {
+        if (distance(q, center(r * cols + c)) < 65) crowd[r * cols + c] += .35;
+      }
+    }
+    const caution = routeCaution(a, urgent);
+    const dig = SAND.dig * (hasWaterShot(a) ? 1 : 2);
+    const open = i => cell[i] !== -2, sandAt = i => cell[i] >= 0 && this.blocks[cell[i]].hp > 0;
+    const costs = new Float64Array(n).fill(Infinity), previous = new Int16Array(n).fill(-1), done = new Uint8Array(n);
+    const start = cellOf(a), queue = minQueue();
+    costs[start] = 0;
+    queue.push(0, start);
+    while (queue.size()) {
+      const u = queue.pop();
+      if (done[u]) continue;
+      done[u] = 1;
+      const uc = u % cols, ur = (u - uc) / cols;
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        const c = uc + dc, r = ur + dr, v = r * cols + c;
+        if ((!dc && !dr) || c < 0 || r < 0 || c >= cols || r >= rows || done[v] || !open(v)) continue;
+        // a diagonal step only between two open, dug cells: no squeezing past a corner, no digging on the slant
+        const side1 = ur * cols + c, side2 = r * cols + uc;
+        if (dc && dr && (!open(side1) || !open(side2) || sandAt(side1) || sandAt(side2) || sandAt(v))) continue;
+        const value = costs[u] + (dc && dr ? CELL * Math.SQRT2 : CELL)
+          * (1 + caution * (cache.risk[u] + cache.risk[v]) / 2 + cache.mud[v] + crowd[v]) + (sandAt(v) ? dig : 0);
+        if (value < costs[v]) {
+          costs[v] = value;
+          previous[v] = u;
+          queue.push(value, v);
+        }
+      }
+    }
+    // Pull the string: leave out a cell while the walk past it is clear. A sand cell stays (it has to be dug).
+    const pull = raw => {
+      const points = [];
+      let from = a;
+      for (let i = 0; i < raw.length; i++) {
+        if (i < raw.length - 1 && this.clearPath(from, raw[i + 1], NAV_PADDING)) continue;
+        points.push(raw[i]);
+        from = raw[i];
+      }
+      return points;
+    };
+    // The cells from a's own (left out) to the target's, the last one replaced by the target itself.
+    const cellsTo = (t, target) => {
+      const raw = [];
+      for (let k = t; k !== start && k >= 0; k = previous[k]) raw.push(center(k));
+      raw.reverse();
+      if (raw.length) raw[raw.length - 1] = { x: target.x, y: target.y };
+      else raw.push({ x: target.x, y: target.y });
+      return raw;
+    };
+    return {
+      // cost at once; length (along the cells, a little longer than the pulled route) and points (pulled) when first
+      // read: most callers compare costs only
+      to: target => {
+        const t = cellOf(target);
+        if (!this.validPosition(target.x, target.y) || !Number.isFinite(costs[t])) return noRoute();
+        let raw = null, length = null, points = null;
+        return {
+          cost: costs[t] + distance(center(t), target),
+          get length() { return length ??= routeLength(a, raw ||= cellsTo(t, target)); },
+          get points() { return points ||= pull(raw ||= cellsTo(t, target)); },
+        };
+      }
+    };
+  }
+  // Whether a can set off toward p: the cover graph has a first step there; on a grid stage, no rock is in the way
+  // (sand on the way is dug).
+  canHead(a, p) {
+    return this.grid ? clearPath(a, p, NAV_PADDING, this.solid) : distance(a, this.nextWaypoint(a, p)) > 1;
   }
   clearPath(a, b, pad = 0) { return clearPath(a, b, pad, this.obstacles); }
   validPosition(x, y) { return validPosition(x, y, CONFIG.radius, this.obstacles); }
@@ -242,32 +481,30 @@ export class Game {
     for (const b of threats) {
       const d = distance(p, b);
       if (d < 410 && this.clearPath(p, b)) risk += 1.5 * (1 - d / 410);
-      if (b.charge > .4 && this.clearPath(p, b)
-        && Math.abs((p.x - b.x) * Math.sin(b.aim || 0) - (p.y - b.y) * Math.cos(b.aim || 0)) < 50) risk += 1.5;
+      if (b.charge > .4 && Math.abs((p.x - b.x) * Math.sin(b.aim || 0) - (p.y - b.y) * Math.cos(b.aim || 0)) < 50
+        && this.clearPath(p, b)) risk += 1.5;
     }
     return Math.min(3, risk);
   }
   terrainPaths(a, threats, allies = [], urgent = false) {
+    if (this.grid) return this.gridPaths(a, threats, allies, urgent);
     const { nodes, edges } = this.terrainGraph;
     // Edge risk and mud are cached per team for .7 s, or until the known threats change (who, 30 px cell, charging).
-    const signature = threats.map(b => `${b.id}:${Math.round(b.x / 30)}:${Math.round(b.y / 30)}:${b.charge > .4}`)
-      .join('|');
+    const signature = threatSignature(threats);
     let cache = this.terrainCosts[a.team];
     if (!cache || this.time - cache.time > .7 || cache.signature !== signature) {
       const risk = nodes.map(p => this.terrainRisk(p, threats));
-      const mud = p => this.puddles
-        .reduce((cost, w) => cost + (insidePuddle(p, w) ? w.slow * w.water / w.capacity : 0), 0);
       cache = {
         time: this.time, signature, risk,
         edges: edges.map((list, i) => list.map(e => ({
           ...e,
           risk: (risk[i] + risk[e.i] + this.terrainRisk(e.mid, threats) * 2) / 4,
-          mud: mud(e.mid)
+          mud: this.mudAt(e.mid)
         })))
       };
       this.terrainCosts[a.team] = cache;
     }
-    const caution = urgent ? .2 : a.water < 25 || a.hp < 35 ? 2.2 : 1.1;
+    const caution = routeCaution(a, urgent);
     const crowd = nodes.map(p => allies.filter(b => b.ai.route?.points?.some(q => distance(p, q) < 65)
       && distance(p, ZONE) > 100).length * .35);
     const cost = (u, v) => distance(u, v)
@@ -292,7 +529,7 @@ export class Game {
     // to(target): the cheapest route from a (straight or through graph nodes), its cost and its walking length.
     return {
       to: target => {
-        if (!this.validPosition(target.x, target.y)) return { cost: Infinity, points: [], length: Infinity };
+        if (!this.validPosition(target.x, target.y)) return noRoute();
         let best = this.clearPath(a, target, NAV_PADDING) ? cost(a, target) : Infinity, end = -1;
         for (let i = 0; i < nodes.length; i++) if (costs[i] < best && this.clearPath(nodes[i], target, NAV_PADDING)) {
           const value = costs[i] + cost(nodes[i], target);
@@ -306,12 +543,7 @@ export class Game {
           points.unshift(nodes[end]);
           end = previous[end];
         }
-        let length = 0, last = a;
-        for (const p of points) {
-          length += distance(last, p);
-          last = p;
-        }
-        return { cost: best, points: Number.isFinite(best) ? points : [], length };
+        return { cost: best, points: Number.isFinite(best) ? points : [], length: routeLength(a, points) };
       }
     };
   }
@@ -393,7 +625,7 @@ export class Game {
     if (a.weapon !== id) this.cancelCharge(a);
     a.weapon = id; return true;
   }
-  emit(text, type = 'info', team = null) { this.events.push({ text, type, team, time: this.time }); if (this.events.length > 15) this.events.shift(); }
+  emit(text, type = 'info', team = null, extra = null) { this.events.push({ text, type, team, time: this.time, ...extra }); if (this.events.length > 15) this.events.shift(); }
   remainingWater() { return [...this.puddles, ...this.taps].reduce((s, p) => s + p.water, 0); }
   // The pool that tap t pours into.
   puddleOf(t) { return this.puddles.find(p => p.id === t.puddleId); }
@@ -402,6 +634,7 @@ export class Game {
   advanceEffects(dt) {
     this.effects = this.effects.filter(e => (e.life -= dt) > 0);
     for (const a of this.actors) a.hitFlash = Math.max(0, a.hitFlash - dt);
+    for (const o of this.blocks) if (o.hitFlash > 0) o.hitFlash = Math.max(0, o.hitFlash - dt);
   }
   longEscape(a, enemy, threats) {
     // Only reachable cover counts: a nearby point behind a wall is not a retreat route.
@@ -474,7 +707,7 @@ export class Game {
         const exposure = threats.filter(b => b.id !== enemy.id && distance(b, p) < 350 && this.clearPath(b, p)).length;
         const sameAngle = partner && !rush ? Math.max(0, Math.cos(offset) - .25) * 280 : 0;
         return {...p, cost: distance(a, p) + distance(p, ZONE) * .25 + exposure * 220 + sameAngle + i * 12 + (reserved(p) ? 350 : 0)};
-      }).filter(p => this.validPosition(p.x, p.y) && this.clearPath(p, enemy) && distance(a, this.nextWaypoint(a, p)) > 1);
+      }).filter(p => this.validPosition(p.x, p.y) && this.clearPath(p, enemy) && this.canHead(a, p));
       candidates.sort((b, c) => b.cost - c.cost);
       if (!candidates[0]) { ai.tactic = null; return null; }
       goal = {id: rush ? 'rush' : 'pincer', x: candidates[0].x, y: candidates[0].y};
@@ -493,6 +726,7 @@ export class Game {
     this.updateWaypoint(ctx);
     this.steer(ctx);
     this.aimAndChooseWeapon(ctx);
+    this.shootSand(ctx);
     this.applyProfileLimits(ctx);
     this.dodgeLockedBeam(ctx);
     return { x: ctx.mx, y: ctx.my, aim: ctx.aim, shoot: ctx.shoot };
@@ -509,7 +743,7 @@ export class Game {
     // React to immediate threats first; otherwise focus exposed objective threats together.
     const priority = b => distance(a, b) + b.hp * 1.3 - (distance(b, ZONE) < ZONE.r ? 220 : 0)
       - allies.filter(c => c.ai.targetId === b.id && distance(c, b) < 500).length * (profile?.focus ?? 45)
-      - (this.stage?.difficulty === 3 && (b.recoil > 0 || b.tapId) ? 150 : 0);
+      - (this.stage?.difficulty >= 3 && (b.recoil > 0 || b.tapId) ? 150 : 0);
     const enemy = visible[0] && distance(a, visible[0]) < 300 ? visible[0]
       : [...visible].sort((b, c) => priority(b) - priority(c))[0];
     if (ai.targetId !== (enemy?.id ?? null)) ai.reactionUntil = this.time + (profile?.reaction || 0);
@@ -548,7 +782,7 @@ export class Game {
       if (ai.goal?.id !== 'zone') ai.think = 0;
     } else {
       if (a.water < 25) ai.refill = true;
-      if (a.water >= 60) ai.refill = false;
+      if (a.water >= 60 || a.buffs.endless > 0) ai.refill = false;
     }
     // Keep a combat-capable bot on the objective and limit support to one bot.
     if (unsafe || urgent || anchor === a || supplier !== a
@@ -565,12 +799,15 @@ export class Game {
       || hurt || (ai.refill && ai.goal && !ai.goal.puddleId && ai.goal.water <= 1e-7))) ai.think = 0;
     if (ai.refill && ai.goal?.id === 'zone') ai.think = 0;
     if (ai.goal?.puddleId && (!this.usableTap(ai.goal) || this.puddleOf(ai.goal).water >= 30)) ai.think = 0;
+    if (ai.goal?.id === 'item' && !this.items.some(it => it.id === ai.goal.itemId)) ai.think = 0;
     ai.think -= dt;
     if (ai.think <= 0) {
       ai.think = this.stage ? .8 + a.role * .08 : .35 + this.random() * .2;
-      const paths = this.stage ? this.terrainPaths(a, threats, allies, urgent) : null;
+      // (kept on ctx: updateWaypoint asks the same planner with the same inputs this tick)
+      const paths = ctx.paths = this.stage ? this.terrainPaths(a, threats, allies, urgent) : null;
       if (ai.refill && waterAvailable) this.chooseSupplyGoal(ctx, paths);
       if (!ai.refill || !ai.goal) this.chooseObjectiveGoal(ctx, paths);
+      if (paths && this.items.length) this.chooseItemGoal(ctx, paths);
       if (this.stage) {
         ai.baseGoal = ai.goal;
         ai.plannedRefill = ai.refill;
@@ -625,6 +862,22 @@ export class Game {
       if (escapes[0]) ai.goal = { id: 'retreat', x: escapes[0].x, y: escapes[0].y };
     }
   }
+  // An item lying near enough for a short walk (longer for heal / bucket when hurt / dry), unless an ally goes for it.
+  chooseItemGoal(ctx, paths) {
+    const { a, ai, allies, urgent } = ctx;
+    if (urgent && a.hp > 40) return;
+    let best = null;
+    for (const it of this.items) {
+      if (allies.some(b => b.ai.goal?.itemId === it.id)) continue;
+      const need = it.kind === 'heal' ? (a.hp < 70 ? 2 : .4) : it.kind === 'bucket' ? (a.water < 50 ? 2 : .4) : 1;
+      const route = paths.to(it);
+      if (!Number.isFinite(route.cost) || route.length > 360 * need) continue;
+      if (!best || route.cost / need < best.cost) best = { it, cost: route.cost / need };
+    }
+    if (!best) return;
+    ai.goal = { id: 'item', x: best.it.x, y: best.it.y, itemId: best.it.id };
+    ai.supplyPoint = null;
+  }
   // Tactical goals (peek from cover, pincer, rush, snipe, guard a recovering ally, retreat after a long shot)
   // override the planned goal.
   tacticalOverride(ctx) {
@@ -632,7 +885,7 @@ export class Game {
     let tacticalGoal = null;
     if ((!profile || profile.tactics) && !ai.refill && !urgent && !retreat && anchor !== a && a.recoil <= 0
       && this.finaleEndsAt === null
-      && (!this.stage || !['water-route', 'escort'].includes(ai.goal?.id) || enemy && distance(a, enemy) < 140)) {
+      && (!this.stage || !['water-route', 'escort', 'item'].includes(ai.goal?.id) || enemy && distance(a, enemy) < 140)) {
       if (enemy) tacticalGoal = this.combatPlan(a, enemy, allies, visible, dt, hurt);
       else if (ai.tactic?.hide && ai.sighting && this.time - ai.sighting.time < 2) {
         // Use the last seen position only; hidden opponents are not tracked through walls.
@@ -640,7 +893,7 @@ export class Game {
       } else ai.tactic = null;
       if (tacticalGoal) ai.goal = tacticalGoal;
     } else ai.tactic = null;
-    if (this.stage?.difficulty === 3 && !ai.refill && !urgent && !retreat && anchor !== a && enemy) {
+    if (this.stage?.difficulty >= 3 && !ai.refill && !urgent && !retreat && anchor !== a && enemy) {
       const recovering = allies.find(b => b.recoil > 1 && distance(a, b) < 260);
       if (recovering && distance(recovering, enemy) > 250) {
         const angle = Math.atan2(enemy.y - recovering.y, enemy.x - recovering.x);
@@ -668,7 +921,7 @@ export class Game {
     }
     ai.mode = ai.refill ? ai.goal?.puddleId ? 'watering' : 'refill'
       : retreat && !urgent ? 'retreat' : enemy ? 'combat' : 'objective';
-    if (this.stage && ['water-route', 'escort'].includes(ai.goal?.id)) ai.mode = ai.goal.id;
+    if (this.stage && ['water-route', 'escort', 'item'].includes(ai.goal?.id)) ai.mode = ai.goal.id;
     if (tacticalGoal) ai.mode = tacticalGoal.id;
     const goal = ai.goal || ZONE;
     const travelGoal = this.stage && ai.refill && ai.supplyPoint ? ai.supplyPoint : goal;
@@ -682,14 +935,18 @@ export class Game {
     ai.pathTime -= dt;
     if (this.stage) {
       const route = ai.route;
+      // (sand on the route is dug, not walked around: only the walls that never break make a new route)
       if (!route || ai.pathTime <= 0 || distance(route.target, travelGoal) > 30 || hurt
-        || route.points[0] && !this.clearPath(a, route.points[0], NAV_PADDING)) {
-        const plan = this.terrainPaths(a, threats, allies, urgent).to(travelGoal);
+        || route.points[0] && !clearPath(a, route.points[0], NAV_PADDING, this.solid)) {
+        const plan = (ctx.paths || this.terrainPaths(a, threats, allies, urgent)).to(travelGoal);
         ai.route = { points: plan.points, target: { x: travelGoal.x, y: travelGoal.y } };
         ai.pathTime = .9 + a.role * .07;
       }
       while (ai.route.points.length > 1 && distance(a, ai.route.points[0]) < 14) ai.route.points.shift();
-      ai.waypoint = ai.route.points[0] || this.nextWaypoint(a, travelGoal);
+      // No route: the cover graph's next step; on a grid stage straight at the target (what is in the way is dug).
+      ai.waypoint = ai.route.points[0] || (this.grid ? { x: travelGoal.x, y: travelGoal.y } : this.nextWaypoint(a, travelGoal));
+      // the next sand to dig: the first standing block a body walking to the waypoint runs into
+      ai.dig = firstHit(this.blocks, a, ai.waypoint, CONFIG.radius - 1, o => o.hp <= 0);
     } else if (!ai.waypoint || ai.pathTime <= 0 || distance(a, ai.waypoint) < 12) {
       ai.pathTime = .35;
       ai.waypoint = this.nextWaypoint(a, travelGoal);
@@ -714,6 +971,11 @@ export class Game {
     if (ai.refill && !goal.puddleId && insidePuddle(a, goal)) {
       mx *= .15;
       my *= .15;
+    }
+    // At the sand to dig: stand and shoot instead of sliding along its face.
+    if (ai.dig && segmentRect(a, a, ai.dig, CONFIG.radius + 18) !== null) {
+      mx = 0;
+      my = 0;
     }
     if (enemy && !ai.refill) {
       const d = Math.max(distance(a, enemy), 1e-6), ex = (enemy.x - a.x) / d, ey = (enemy.y - a.y) / d;
@@ -818,6 +1080,26 @@ export class Game {
     ctx.aim = aim;
     ctx.shoot = shoot;
   }
+  // With sand on the stage, a bot that is not shooting at anyone fires the normal gun at the sand on its way (ai.dig)
+  // or, with water to spare, at a glowing block in clear reach (like a player, it cannot know which others hide an
+  // item).
+  shootSand(ctx) {
+    const { a, ai } = ctx;
+    if (!this.blocks.length || ctx.shoot || a.charge > 0) return;
+    let target = ai.dig?.hp > 0 ? ai.dig : null;
+    if (!target && a.water >= 20 && !ai.refill) {
+      target = this.blocks.filter(o => o.hp > 0 && o.glow && distance(a, centerOf(o)) < 230
+        && firstHit(this.obstacles, a, centerOf(o), 2) === o)
+        .sort((o, q) => distance(a, o) - distance(a, q))[0] || null;
+    }
+    if (!target) return;
+    const p = centerOf(target);
+    if (distance(a, p) - target.w / 2 > shotRange(a, 'normal') * .8) return;
+    a.weapon = 'normal';
+    ctx.aim = Math.atan2(p.y - a.y, p.x - a.x);
+    ctx.shoot = true;
+    ai.mode = 'dig';
+  }
   // Difficulty profile: reaction delay, burst / rest firing rhythm and the tutorial's opening grace period.
   applyProfileLimits(ctx) {
     const { a, ai, profile } = ctx;
@@ -898,6 +1180,8 @@ export class Game {
     this.fireWeapons(live);
     this.operateTaps(live, dt);
     this.refillFromPuddles(live, dt);
+    this.collectItems(live);
+    if (this.relightAt.length) this.relightBlocks();
     this.advanceBullets(dt);
     // Hits during bullet travel can defeat actors, so ownership is resolved again before scoring.
     this.updateZonePresence();
@@ -913,6 +1197,7 @@ export class Game {
       a.flinch = Math.max(0, a.flinch - dt);
       a.fireLock = Math.max(0, a.fireLock - dt);
       a.flinchGuard = Math.max(0, a.flinchGuard - dt);
+      for (const k in a.buffs) if (a.buffs[k] > 0) a.buffs[k] = Math.max(0, a.buffs[k] - dt);
       const control = a.human ? { x: input.x || 0, y: input.y || 0, aim: input.aim ?? a.aim, shoot: !!input.shoot }
         : this.botControl(a, dt);
       const tap = Math.hypot(control.x, control.y) < 1e-8
@@ -924,15 +1209,14 @@ export class Game {
       this.updateCharge(a, control.aim, dt);
       a.refilling = false;
       a.refillAmount = 0;
-      const puddle = this.puddles.find(p => insidePuddle(a, p));
-      a.slowFactor = puddle ? 1 - puddle.slow * puddle.water / puddle.capacity : 1;
+      const puddle = this.puddles.find(p => insidePuddle(a, p)), dash = a.buffs.dash > 0;
+      a.slowFactor = puddle && !dash ? 1 - puddle.slow * puddle.water / puddle.capacity : 1;
       if (a.flinch > 1e-8) a.slowFactor = Math.min(a.slowFactor, CONFIG.flinchSpeed);
       if (a.recoil > 1e-8) a.slowFactor = Math.min(a.slowFactor, CONFIG.recoilSpeed);
       if (a.charge > 0) a.slowFactor = Math.min(a.slowFactor, CONFIG.longChargeSpeed);
-      const norm = Math.max(1, Math.hypot(control.x, control.y));
+      const norm = Math.max(1, Math.hypot(control.x, control.y)), speed = CONFIG.speed * (dash ? ITEM_RULES.dashSpeed : 1);
       const old = { x: a.x, y: a.y };
-      this.move(a, control.x / norm * CONFIG.speed * a.slowFactor * dt,
-        control.y / norm * CONFIG.speed * a.slowFactor * dt);
+      this.move(a, control.x / norm * speed * a.slowFactor * dt, control.y / norm * speed * a.slowFactor * dt);
       if (tap) {
         const d = distance(a, tap), step = Math.min(d, 90 * a.slowFactor * dt);
         if (d > 1e-8) this.move(a, (tap.x - a.x) / d * step, (tap.y - a.y) / d * step);
@@ -959,14 +1243,16 @@ export class Game {
   fireWeapons(live) {
     for (const a of live) {
       if (a.firing && weaponWait(a) <= 1e-6 && a.fireLock <= 1e-8) {
-        const w = selectedWeapon(a), weak = !hasWeaponWater(a), boosted = !weak && this.zoneOwner === a.team;
+        const w = selectedWeapon(a), weak = !hasWeaponWater(a);
+        const boosted = !weak && (this.zoneOwner === a.team || a.buffs.nozzle > 0);
         if (w.id === 'long' && !weak && a.charge < CONFIG.longChargeDuration - 1e-8) continue;
         // Recheck here: several bots can finish aiming during the same simulation tick.
         if (!a.human && w.id === 'long' && !weak && (this.time - this.lastTeamLong[a.team] <= 1.5
           || live.some(b => b.id !== a.id && b.team === a.team && b.recoil > 1e-8))) continue;
-        if (!weak) {
-          a.water = Math.max(0, a.water - w.cost);
-          this.usedWater += w.cost;
+        const cost = weak ? 0 : shotCost(a);
+        if (cost) {
+          a.water = Math.max(0, a.water - cost);
+          this.usedWater += cost;
         }
         a.cooldown = weak ? CONFIG.weakFireInterval : CONFIG.fireInterval;
         a.weaponCooldowns[w.id] = weak ? CONFIG.weakFireInterval : w.interval;
@@ -1045,10 +1331,17 @@ export class Game {
       const travel = instant ? b.remaining : Math.min(speed * dt, b.remaining ?? speed * b.life, speed * b.life);
       if (travel <= 1e-8 || speed <= 0) continue;
       const end = { x: b.x + b.vx / speed * travel, y: b.y + b.vy / speed * travel };
-      let wall = 2;
+      // wall: where the shot ends (block: that obstacle when it is sand). The long barrel's beam goes through sand and
+      // wears down every block it crosses (sand, made only when there is some).
+      let wall = 2, block = null, sand = null;
       for (const o of this.obstacles) {
         const t = segmentRect(b, end, o, 2);
-        if (t !== null) wall = Math.min(wall, t);
+        if (t === null) continue;
+        if (instant && o.sand) (sand ||= []).push({ o, t });
+        else if (t < wall) {
+          wall = t;
+          block = o.sand ? o : null;
+        }
       }
       if (instant) {
         for (const [start, delta, min, max] of [[b.x, end.x - b.x, BULLET_MARGIN, CONFIG.width - BULLET_MARGIN],
@@ -1060,6 +1353,7 @@ export class Game {
         this.effects.push({ kind: 'beam', x: b.x, y: b.y,
           endX: b.x + (end.x - b.x) * fraction, endY: b.y + (end.y - b.y) * fraction, team: b.team, owner: b.owner,
           weapon: 'long', damage: b.damage, pierce: true, boosted: b.boosted, life: .24, total: .24 });
+        if (sand) for (const s of sand) if (s.t < fraction) this.damageBlock(s.o, b.damage);
       }
       b.hitIds ||= [];
       const hits = this.actors.filter(a => a.alive && a.team !== b.team && !b.hitIds.includes(a.id))
@@ -1077,6 +1371,7 @@ export class Game {
       if (stopped) continue;
       if (wall <= 1) {
         this.hitBullet(b, null, b.x + (end.x - b.x) * wall, b.y + (end.y - b.y) * wall);
+        if (block) this.damageBlock(block, b.damage);
         continue;
       }
       b.x = end.x;
@@ -1129,18 +1424,20 @@ export class Game {
   hitBullet(b, target, x, y) {
     const speed = Math.hypot(b.vx, b.vy), dx = b.vx / speed, dy = b.vy / speed;
     const duration = target ? .38 : .23;
-    const damage = b.damage * incomingDamageMultiplier(target);
+    // a raincoat (item) sheds the shot: it lands, but does no damage and no flinch
+    const guarded = target?.buffs.coat > 0;
+    const damage = guarded ? 0 : b.damage * incomingDamageMultiplier(target);
     this.effects.push({ x, y, team: b.team, owner: b.owner, seed: b.id, dx, dy, damage, weapon: b.weapon, weak: b.weak, life: duration, total: duration, kind: target ? 'hit' : 'splash' });
     if (target) {
       target.hp = Math.max(0, target.hp - damage); target.hitFlash = .13;
-      if (!b.weak && target.hp > 0 && target.flinchGuard <= 1e-8) {
+      if (!b.weak && !guarded && target.hp > 0 && target.flinchGuard <= 1e-8) {
         this.cancelCharge(target);
         target.flinch = CONFIG.flinchDuration; target.fireLock = CONFIG.fireLockDuration;
         target.flinchGuard = CONFIG.flinchDuration + CONFIG.flinchImmunity;
       }
       target.hitDirectionX = dx; target.hitDirectionY = dy;
       this.actors[b.owner].stats.hits++;
-      this.combatEvents.push({ id: ++this.combatSequence, owner: b.owner, target: target.id, targetName: target.name, x, y, dx, dy, damage, weapon: b.weapon, weak: b.weak, killed: target.hp === 0 });
+      this.combatEvents.push({ id: ++this.combatSequence, owner: b.owner, target: target.id, targetName: target.name, x, y, dx, dy, damage, weapon: b.weapon, weak: b.weak, guarded, killed: target.hp === 0 });
       if (this.combatEvents.length > 64) this.combatEvents.shift();
       if (target.hp === 0) {
         target.alive = false; target.vx = target.vy = 0; target.tapId = null; this.cancelCharge(target);
@@ -1150,6 +1447,68 @@ export class Game {
         this.effects.push({ x: target.x, y: target.y, team: target.team, owner: b.owner, seed: b.id, dx, dy, life: .95, total: .95, kind: 'out' });
       }
     }
+  }
+  // A shot wears a sand block down; at 0 it breaks: it leaves the obstacles (and the routes open), crumbles and drops
+  // its item, if it holds one.
+  damageBlock(o, damage) {
+    if (o.hp <= 0) return;
+    o.hp = Math.max(0, o.hp - damage);
+    o.hitFlash = .13;
+    if (o.hp > 0) return;
+    const i = this.obstacles.indexOf(o);
+    if (i >= 0) this.obstacles.splice(i, 1);
+    this.blockVersion++;
+    const { x, y } = centerOf(o);
+    this.effects.push({ kind: 'crumble', x, y, item: o.item, glow: o.glow, life: .5, total: .5 });
+    if (o.item) this.items.push({ id: this.nextItem++, kind: o.item, x, y });
+    if (o.glow) this.relightAt.push(this.time + ITEM_RULES.relight);
+    o.item = null;
+    o.glow = false;
+  }
+  randomItem() { return ITEMS[Math.floor(this.random() * ITEMS.length)].id; }
+  // A standing block picked at random starts to glow, with an item (its own, if it hid one); null when none is left.
+  lightBlock() {
+    const free = this.blocks.filter(o => o.hp > 0 && !o.glow);
+    if (!free.length) return null;
+    const o = free[Math.floor(this.random() * free.length)];
+    o.item ||= this.randomItem();
+    o.glow = true;
+    return o;
+  }
+  // When their time comes, the successors of broken glowing blocks light up somewhere else.
+  relightBlocks() {
+    while (this.relightAt.length && this.time >= this.relightAt[0] - 1e-9) {
+      this.relightAt.shift();
+      const o = this.lightBlock();
+      if (o) this.effects.push({ kind: 'glow', ...centerOf(o), life: .5, total: .5 });
+    }
+  }
+  // Walking over an item takes it (the nearest living actor in reach, the first in actor order on a tie). The list
+  // keeps its identity: the view reads it as it is.
+  collectItems(live) {
+    for (let i = 0; i < this.items.length;) {
+      const it = this.items[i];
+      let a = null, best = CONFIG.radius + ITEM_RULES.reach;
+      for (const b of live) {
+        const d = distance(b, it);
+        if (d < best || (d === best && !a)) { a = b; best = d; }
+      }
+      if (!a) { i++; continue; }
+      this.items.splice(i, 1);
+      this.applyItem(a, it);
+    }
+  }
+  applyItem(a, it) {
+    const item = ITEMS.find(i => i.id === it.kind);
+    if (it.kind === 'bucket') {
+      // new water for the match: it counts in the total, so used + discarded + tanks + sources still add up
+      const add = CONFIG.capacity - a.water;
+      a.water = CONFIG.capacity;
+      this.initialTotalWater += add;
+    } else if (it.kind === 'heal') a.hp = Math.min(CONFIG.health, a.hp + ITEM_RULES.heal);
+    else a.buffs[it.kind] = item.time;
+    this.effects.push({ kind: 'item', item: it.kind, x: it.x, y: it.y, owner: a.id, life: .5, total: .5 });
+    this.emit(`${a.name} が ${item.name} をひろった`, 'item', a.team, { actor: a.id, item: it.kind });
   }
   updateZonePresence() {
     const presence = [0, 0];

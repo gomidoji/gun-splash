@@ -31,7 +31,7 @@ PCとスマホ・タブレットのブラウザに対応しています。音は
   - **ノーマル**：中距離の連射
   - **スプラッシュ**：近距離に広がる散弾
   - **ロングバレル**：ためて撃つ、貫通する遠距離弾
-- ステージは入門から上級までの4つです。くわしいルールは、ゲーム内の取扱説明書にあります。
+- ステージは入門から上級までの4つです。順番に勝つと次が開き、上級で勝つと、なぞのスペシャルステージも遊べるようになります。くわしいルールは、ゲーム内の取扱説明書にあります。
 
 ## 操作
 
@@ -93,7 +93,7 @@ It works in browsers on PCs, phones and tablets. Sound starts off; choose "あ�
   - **Normal**: rapid fire at mid range
   - **Splash**: a short-range spread
   - **Long barrel**: a charged, piercing long-range shot
-- There are four stages, from beginner to advanced. The full rules are in the in-game manual (the [せつめいしょ] (manual) button, in Japanese).
+- There are four stages, from beginner to advanced. A win opens the next one, and a win on the advanced stage opens a mystery special stage. The full rules are in the in-game manual (the [せつめいしょ] (manual) button, in Japanese).
 
 ### Controls
 

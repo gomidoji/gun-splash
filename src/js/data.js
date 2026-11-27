@@ -51,6 +51,11 @@
       // Each pool lies in a dead end in one corner; two of them are west of the zone, so named by corner.
       poolNames: { 'home-blue': '南西', 'home-orange': '北東', north: '北西', south: '南東' },
     },
+    special: {
+      nameRom: ['すなの', 'とりで'], levelRom: 'スペシャル',
+      descRom: ['かべは すなで できている', 'うてば くずれて アイテムも', 'とりでを ほって 陣地へ!'],
+      ground: ['g5a', 'g5b'],
+    },
   };
 
   // ---- pool names from coordinates (seen from the zone centre) ------------
@@ -120,9 +125,9 @@
 
   // ---- converter --------------------------------------------------------------
   // Builds GS.RULES (the CONFIG values the classic scripts read) / GS.ZONE / GS.SPAWN / GS.STAGES from the game.mjs
-  // namespace. GS.STAGES keeps the ROM format: { id, no, name, nameRom, level, levelRom, cpu, difficulty, desc,
-  // descRom, obstacles, pools: [{ id, x, y, rx, ry, angle, phase, capacity, initial, slow, dir, label }],
-  // taps: [{ x, y, pool }], ground }.
+  // namespace. GS.STAGES keeps the ROM format: { id, no, name, nameRom, level, levelRom, cpu, difficulty, special,
+  // tag, tagSet, short, desc, descRom, obstacles, blocks, pools: [{ id, x, y, rx, ry, angle, phase, capacity,
+  // initial, slow, dir, label }], taps: [{ x, y, pool }], ground }.
   // Initial pool water and the spawn points are read from a fresh probe Game per stage (they live in
   // Game.reset, not in an export).
   GS.setGameData = function (rules) {
@@ -150,15 +155,19 @@
       assignCompass(pools, ZONE, s.id, rom.poolNames);
       return {
         id: s.id, no: i + 1, name: s.name, nameRom: rom.nameRom.slice(), level: s.level, levelRom: rom.levelRom,
-        cpu: (s.difficulty | 0) + 1, difficulty: s.difficulty,
+        cpu: (s.difficulty | 0) + 1, difficulty: s.difficulty, special: !!s.special,
+        // how screens name it: tag 'STAGE 2' / 'SPECIAL' (8px, in tagSet), short '2' / 'SP' before the name
+        tag: s.special ? 'SPECIAL' : 'STAGE ' + (i + 1), tagSet: s.special ? 'H3' : 'H0', short: s.special ? 'SP' : String(i + 1),
         desc: s.description, descRom: rom.descRom.slice(),
         obstacles: (s.obstacles || []).map(o => ({ x: o.x, y: o.y, w: o.w, h: o.h })),
+        // sand (the special stage): drawn over the map by GS.drawBlocks, not into it (it breaks)
+        blocks: (s.blocks || []).map(o => ({ x: o.x, y: o.y, w: o.w, h: o.h })),
         pools,
         taps: taps(s.taps || []),
         ground: rom.ground.slice(),
       };
     });
-    if (list.length !== 4) dbg('count', 'game.mjs has', list.length, 'stages; the ROM has stage1..stage4');
+    if (list.length !== 5) dbg('count', 'game.mjs has', list.length, 'stages; the ROM has stage1..stage5');
 
     // captureGoal: title.js (the rule line), radius: core.js (the live shoreline). Other rule values are read from
     // GS.app.rules (game.mjs) directly.

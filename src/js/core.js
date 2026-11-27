@@ -22,7 +22,9 @@
     self: '#D0F090', neutral: '#E0D8A0', neutralDk: '#787860',
     waterShallow: '#88D8C0', waterDeep: '#185060', foam: '#E0F0D8',
     g1a: '#507068', g1b: '#98A878', g2a: '#406878', g2b: '#A0B8A0',
-    g3a: '#706870', g3b: '#C0A080', g4a: '#485878', g4b: '#88A098',
+    g3a: '#706870', g3b: '#C0A080', g4a: '#485878', g4b: '#88A098', g5a: '#5E5848', g5b: '#86786A',
+    // sand blocks (the special stage): top face, its grains and light edge, the front face, cracks
+    sandTop: '#D8B878', sandGrain: '#B89458', sandHi: '#F0DCA8', sandSide: '#A07848', sandCrack: '#6A4828',
     outside: '#183030', wallTop: '#809078', wallSide: '#404850', wallEdge: '#C0C8B0', wallShadow: '#304848',
     sand: '#B8B880', dry: '#485850', dry2: '#586858',
     pumpMetal: '#A8B0B8', pumpDk: '#586878', lever: '#F8D088', footOn: '#F8D860', footOff: '#485868',
@@ -1042,6 +1044,60 @@
     mapCache.set(key, cv); return cv;
   };
 
+  // Sand blocks (the special stage) over a map drawn at (ox, oy) with `scale`. blocks: [{ x, y, w, h, hp?, hitFlash?,
+  // glow? }] in world units (GS.stage(id).blocks before the match, the Game's blocks during it: those with hp <= 0
+  // are gone). From 1/4 up: a sand tile with grains, a light top edge, a front face, cracks as hp drops (maxHp) and a
+  // blinking gold glint on a glowing block (one that shows its item); smaller: a plain square (a glowing block with a
+  // gold dot from 1/12 up). A block that hides an item looks like any other.
+  GS.drawBlocks = function (c, blocks, ox, oy, scale, frame, maxHp) {
+    if (!blocks || !blocks.length) return;
+    frame = frame || 0;
+    // the standing blocks that reach into the canvas (shadow included), each with its box once
+    const CW = c.canvas.width, CH = c.canvas.height, list = [];
+    for (const o of blocks) {
+      if (o.hp != null && o.hp <= 0) continue;
+      const x = R(ox + o.x * scale), y = R(oy + o.y * scale), w = Math.max(1, R(o.w * scale)), h = Math.max(1, R(o.h * scale));
+      if (x + w + 2 >= 0 && y + h + 3 >= 0 && x - 1 < CW && y - 1 < CH) list.push({ o, x, y, w, h });
+    }
+    if (scale < 1 / 4) {
+      c.fillStyle = PAL.sandTop;
+      for (const { x, y, w, h } of list) c.fillRect(x, y, w, h);
+      c.fillStyle = PAL.sandSide;
+      for (const { x, y, w, h } of list) if (h > 2) c.fillRect(x, y + h - 1, w, 1);
+      if (scale >= 1 / 12) {
+        c.fillStyle = PAL.gold;
+        for (const { o, x, y, w, h } of list) if (o.glow) c.fillRect(x + (w >> 1) - 1, y + (h >> 1) - 1, 2, 2);
+      }
+      return;
+    }
+    // shadows, then outlines, then faces: touching blocks read as one wall of tiles
+    c.fillStyle = PAL.wallShadow;
+    for (const { x, y, w, h } of list) c.fillRect(x + 2, y + 3, w, h);
+    c.fillStyle = PAL.ink;
+    for (const { x, y, w, h } of list) c.fillRect(x - 1, y - 1, w + 2, h + 2);
+    for (const { o, x, y, w, h } of list) {
+      const side = Math.min(5, Math.max(2, F(h / 4)));
+      c.fillStyle = PAL.sandTop; c.fillRect(x, y, w, h - side);
+      c.fillStyle = PAL.sandSide; c.fillRect(x, y + h - side, w, side);
+      c.fillStyle = PAL.sandHi; c.fillRect(x, y, w, 1); c.fillRect(x, y, 1, h - side);
+      c.fillStyle = PAL.sandGrain;
+      for (let j = 3; j < h - side - 1; j += 4) for (let i = 2 + ((j >> 2) & 1) * 3; i < w - 1; i += 6) c.fillRect(x + i, y + j, 1, 1);
+      c.fillStyle = PAL.sandCrack;
+      c.fillRect(x + w - 1, y + 1, 1, h - side - 1);     // a dark seam on the right: one tile from the next
+      const worn = maxHp && o.hp != null ? 1 - o.hp / maxHp : 0;
+      if (worn > 0.3) { c.fillRect(x + 3, y + 3, 1, 3); c.fillRect(x + 4, y + 5, 2, 1); c.fillRect(x + 6, y + 6, 1, 2); }
+      if (worn > 0.6) { c.fillRect(x + w - 5, y + 2, 1, 2); c.fillRect(x + w - 7, y + 4, 2, 1); c.fillRect(x + w - 8, y + 5, 1, 3); c.fillRect(x + 8, y + h - side - 3, 3, 1); }
+      if (o.glow) {
+        // a gold glint in the middle, a white spark sweeping across it every 48f
+        const cx = x + (w >> 1), cy = y + ((h - side) >> 1);
+        c.fillStyle = PAL.goldDk; c.fillRect(cx - 2, cy - 1, 4, 3); c.fillRect(cx - 1, cy - 2, 2, 5);
+        c.fillStyle = PAL.gold; c.fillRect(cx - 1, cy - 1, 2, 3); c.fillRect(cx - 2, cy, 4, 1);
+        if (frame % 48 < 6) { c.fillStyle = PAL.white; c.fillRect(cx - 1 + ((frame % 48) >> 1), cy - 1, 1, 1); }
+      }
+      if (o.hitFlash > 0) GS.half(c, x, y, w, h, 'white');
+    }
+  };
+
   // puddle outline: same formula as game.mjs (64 points, rotated by angle)
   function poolPoints(p) {
     if (p._pts) return p._pts;
@@ -1228,6 +1284,7 @@
     const st = GS.stage(snap.stage || 'tutorial'); if (!st) return;
     c.save(); c.beginPath(); c.rect(x, y, 40, 24); c.clip();
     c.drawImage(GS.mapCanvas(st.id, 1 / 30), x, y);
+    GS.drawBlocks(c, snap.blocks || st.blocks, x, y, 1 / 30, frame);   // sand: as it stands now (live) or at the start
     st.pools.forEach((p, i) => {
       const s = snap.pools ? snap.pools[i] : null;
       let ratio = 1;
@@ -1403,6 +1460,9 @@
     win: [{ w: 'sq', f: NT.C5, d: 10 }, { w: 'sq', f: NT.E5, d: 10, at: 10 }, { w: 'sq', f: NT.G5, d: 10, at: 20 }, { w: 'sq', f: NT.C6, d: 30, at: 30 }],
     lose: [{ w: 'sq', f: NT.G4, d: 14 }, { w: 'sq', f: NT.D4, d: 14, at: 14 }, { w: 'sq', f: NT.G3, d: 14, at: 36 }],
     draw: [{ w: 'sq', f: NT.G4, d: 12 }, { w: 'sq', f: NT.G4, d: 12, at: 16 }],
+    // the special stage: a sand block breaking, an item taken
+    crumble: [{ w: 'noise', d: 10, lp: 900 }, { w: 'tri', f: 160, f1: 70, d: 8, g: 0.8 }],
+    item: [{ w: 'sq', f: NT.E6, d: 3 }, { w: 'sq', f: NT.G6, d: 3, at: 3 }, { w: 'sq', f: NT.C6 * 2, d: 8, at: 6 }],
   };
   GS.SFX_LIST = Object.keys(SFX);
   // Start / restart the context. 'suspended' (autoplay policy, a browser pause) and iOS 'interrupted' (another app,

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   Game, STAGES, AI_LEVELS, CONFIG, ZONE, distance, longRayEnd, insidePuddle, puddleOutline, segmentRect,
 } from '../src/game.mjs';
-import { accountedWater } from './helpers.mjs';
+import { accountedWater, floodFill } from './helpers.mjs';
 
 for (const stage of STAGES) {
   test(`${stage.id}: symmetric geometry and connected supply / objective routes`, () => {
@@ -19,14 +19,10 @@ for (const stage of STAGES) {
     for (const target of [...g.actors, ...g.taps, ...g.puddles, ZONE]) {
       assert.ok(g.validPosition(target.x, target.y), `blocked ${target.id}`);
     }
-    // Flood fill on a 10 px grid from beside the blue spawn; every step must leave room for a body.
-    const queue = [{ x: 110, y: 360 }], seen = new Set(['110,360']);
-    for (let i = 0; i < queue.length; i++) for (const [dx, dy] of [[10, 0], [-10, 0], [0, 10], [0, -10]]) {
-      const p = { x: queue[i].x + dx, y: queue[i].y + dy }, key = `${p.x},${p.y}`;
-      if (seen.has(key) || !g.validPosition(p.x, p.y) || !g.clearPath(queue[i], p, CONFIG.radius + 2)) continue;
-      seen.add(key);
-      queue.push(p);
-    }
+    // Sand can be dug: the routes count once it is gone (special.test.mjs checks the fort is closed until then).
+    for (const b of g.blocks) g.damageBlock(b, Infinity);
+    // Flood fill from beside the blue spawn.
+    const queue = floodFill(g);
     for (const target of [...g.actors, ...g.taps, ...g.puddles, ZONE]) {
       assert.ok(queue.some(p => distance(p, target) < 15 && g.clearPath(p, target, CONFIG.radius + 2)),
         `unreachable ${target.id}`);

@@ -495,4 +495,123 @@
     '.abbbbbbbbbbbba.',
     '..aaaaaaaaaaaa..',
   ]);
+
+  // ------------------------------------------------------------------ items (the special stage)
+  // 16x16 on the field (play.js ITEM_PAL: dash danger, nozzle gold, coat self, endless / bucket blue, heal neutral;
+  // UI tints recolour 1-4, the rest keep the blue palette's water and white), 8x8 for the HUD's effect timer.
+  const blank = '................';
+  const item16 = rows => [blank, blank, ...rows, ...Array(14 - rows.length).fill(blank)];
+  def('item_dash', item16([          // a running shoe with speed lines
+    '.........1111...',
+    '........122331..',
+    '........1222231.',
+    '.ddd....1d2d2231',
+    '........12222221',
+    '..ddd..122222221',
+    '.......122222221',
+    '.dddd.1222222221',
+    '......1444444441',
+    '......1dddddddd1',
+    '.......11111111.',
+  ]));
+  def('item_nozzle', item16([        // a big nozzle with water coming out
+    '.1111...........',
+    '1233311.........',
+    '12222231111.....',
+    '1222222222311..c',
+    '12222222222231bc',
+    '12222222222241cb',
+    '1444444444411..b',
+    '1444441111......',
+    '.11111..........',
+  ]));
+  def('item_coat', item16([          // a raincoat with its hood up
+    '.....111111.....',
+    '....12333321....',
+    '...1223555321...',
+    '...1225656521...',
+    '...1225555521...',
+    '..122222222221..',
+    '..1222d22d2221..',
+    '.12222222222221.',
+    '.122222d2222221.',
+    '.12222222222221.',
+    '.14444444444441.',
+    '..111111111111..',
+  ]));
+  def('item_endless', item16([       // a tank with an infinity sign
+    '....aaaaaaaa....',
+    '...a99999999a...',
+    '..aaccccccccaa..',
+    '..aabbbbbbbbaa..',
+    '..aabddbbddbaa..',
+    '..aadbbddbbdaa..',
+    '..aabddbbddbaa..',
+    '..aabbbbbbbbaa..',
+    '..aabbbbbbbbaa..',
+    '...abbbbbbbba...',
+    '....aaaaaaaa....',
+  ]));
+  def('item_bucket', item16([        // a bucket of water
+    '.....111111.....',
+    '....1......1....',
+    '..111111111111..',
+    '..1cccbbbbccc1..',
+    '..122222222221..',
+    '..132222222241..',
+    '...1322222241...',
+    '...1322222241...',
+    '...1322222241...',
+    '....13222241....',
+    '....11111111....',
+  ]));
+  def('item_heal', item16([          // a sticking plaster
+    blank, blank,
+    '...1111111111...',
+    '..122233332221..',
+    '..122234342221..',
+    '..122243432221..',
+    '..122233332221..',
+    '...1111111111...',
+  ]));
+  def('buff_dash', [
+    '........',
+    '...111..',
+    '...1231.',
+    '...12231',
+    'd.122221',
+    '.1222221',
+    '1dddddd1',
+    '.111111.',
+  ]);
+  def('buff_nozzle', [
+    '........',
+    '.111....',
+    '1332111.',
+    '12222231',
+    '1222224c',
+    '1444441b',
+    '.111111.',
+    '........',
+  ]);
+  def('buff_coat', [
+    '..1111..',
+    '.122221.',
+    '.125521.',
+    '.125521.',
+    '12222221',
+    '12d22d21',
+    '12222221',
+    '.111111.',
+  ]);
+  def('buff_endless', [
+    '.aaaaaa.',
+    'acccccca',
+    'abdbbdba',
+    'adbddbda',
+    'abdbbdba',
+    'abbbbbba',
+    'abbbbbba',
+    '.aaaaaa.',
+  ]);
 })();

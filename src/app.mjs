@@ -25,11 +25,14 @@ const AUTO = query.get('auto') === '1';   // ?auto=1: actor 0 is a bot too (need
 const newSeed = () => (SEED != null ? SEED : Math.floor(Math.random() * 1e8));
 
 const STAGE_IDS = STAGES.map(s => s.id);
-const stageNo = id => Math.max(1, STAGE_IDS.indexOf(id) + 1);          // 1..4 (title states stage1..stage4)
+const stageNo = id => Math.max(1, STAGE_IDS.indexOf(id) + 1);          // 1..5 (title states stage1..stage5)
+// the title demo shows the regular stages only: the special one stays a secret
+const DEMO_IDS = STAGES.filter(s => !s.special).map(s => s.id);
 const validStage = id => STAGE_IDS.indexOf(id) >= 0;
 
 // ------------------------------------------------------------------ stage progress (saved in this browser)
-// The stages open in order: at first only the first one, and a win on the last open stage opens the next. Saved
+// The stages open in order: at first only the first one, and a win on the last open stage opens the next (a win on
+// the fourth opens the special stage, which the stage select keeps secret until then). Saved
 // in localStorage (where it cannot be saved, it lasts while the page is open). ?unlock=1 opens every stage for
 // playtests and leaves the saved progress as it is.
 const PROGRESS_KEY = 'gs-progress-v1';
@@ -37,12 +40,14 @@ const UNLOCK_ALL = query.get('unlock') === '1';
 let opened = GS.clamp(Math.floor(GS.loadPrefs(PROGRESS_KEY, { opened: 1 }).opened) || 1, 1, STAGE_IDS.length);   // open stages
 let openedNow = null;    // the stage this round's win opened (the result says so)
 let newStage = null;     // the same, until the stage select first opens on it
+let unveil = null;       // the special stage, once opened, until the stage select has shown it (its static clears)
 const stageOpen = id => UNLOCK_ALL || stageNo(id) <= opened;
 const saveProgress = () => GS.savePrefs(PROGRESS_KEY, { opened });
 function openAfter(id) {
   if (UNLOCK_ALL || stageNo(id) !== opened || opened >= STAGE_IDS.length) return;
   opened++; saveProgress();
   openedNow = newStage = STAGE_IDS[opened - 1];
+  if (STAGES[opened - 1].special) unveil = newStage;
 }
 
 const game = new Game(newSeed(), 'tutorial');
@@ -77,7 +82,7 @@ const app = {
   game,                         // the Game instance (screens only read it)
   rules,                        // game.mjs module namespace: CONFIG, STAGES, WEAPONS, ZONE, OBSTACLES, puddleOutline, ...
   aimAssist,                    // aim.mjs AimAssist for touch / stick aiming (play.js passes scale = CSS px per world unit)
-  selectedStage: 'tutorial',    // 'tutorial' | 'lanes' | 'alleys' | 'maze'
+  selectedStage: 'tutorial',    // 'tutorial' | 'lanes' | 'alleys' | 'maze' | 'special'
   session: { record: [] },      // results of this run: 'win' | 'lose' | 'draw' (not saved)
   round: 0,                     // ++ on every reset of the match (see resetGame)
   recorded: false,              // session.record already has this round
@@ -114,8 +119,14 @@ const app = {
     return app.selectedStage;
   },
   resetProgress() {
-    opened = 1; newStage = null;
+    opened = 1; newStage = null; unveil = null;
     saveProgress();
+  },
+  // title.js: true once, when the stage select first shows the special stage after the win that opened it
+  takeUnveil(id) {
+    if (!id || unveil !== id) return false;
+    unveil = null;
+    return true;
   },
   // result menu「タイトルへ」, end of the demo: the title with the intro already finished
   toTitle() {
@@ -124,10 +135,10 @@ const app = {
   },
   // title idle 1200f -> demo match (actor 0 is a bot too); any input -> endDemo()
   startDemo() {
-    demoStage = (demoStage + 1) % STAGE_IDS.length;   // the demo walks through the stages in order
+    demoStage = (demoStage + 1) % DEMO_IDS.length;   // the demo walks through the stages in order
     // play/demo (live): game.start() at once, DEMO PLAY + tips; any input, the decision or 30 s -> 32f fade-out
     // -> endDemo(). Demo matches are never recorded.
-    startLiveMatch(STAGE_IDS[demoStage], 'demo', 'title', true);
+    startLiveMatch(DEMO_IDS[demoStage], 'demo', 'title', true);
   },
   endDemo() {
     app.abandonRound();

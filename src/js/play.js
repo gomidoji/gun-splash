@@ -31,7 +31,10 @@
   const PAUSABLE = ['countdown', 'normal', 'contest', 'lowhp', 'finale', 'spectate'];
   const ENDS = ['end-final', 'end-set', 'end-timeup', 'end-draw'];
   // message priority: finale > own KO > capture change > low HP > other KO > dry > 15 s left
-  const MPRIO = { start: 9, finale: 8, self: 7, capture: 6, lowhp: 5, ko: 4, dry: 3, left15: 2, tip: 1 };
+  const MPRIO = { start: 9, finale: 8, self: 7, capture: 6, lowhp: 5, item: 4, ko: 4, dry: 3, left15: 2, tip: 1, sand: 1 };
+  // items (the special stage): sprite palette per kind; an item effect shows while it lasts, blinking in its last 1.5 s
+  const ITEM_PAL = { dash: 'danger', nozzle: 'gold', coat: 'self', endless: 'blue', bucket: 'blue', heal: 'neutral' };
+  const buffShown = (t, f) => t > 0 && (t > 1.5 || GS.blink(f, 4, 4));
   const WOB = [0, 0.09, -0.07, 0.13, -0.11, 0.04, -0.14, 0.08];   // YOU's shot spread pattern (rad)
   const AO_SPLASH = [45, 200, 380];                          // アオ fires; the f45 volley lands on カイ at f60
   // Countdown frames (both paths). The iris opens over f0-23 (reduced motion: a 16f fade-in) and the window over
@@ -455,7 +458,7 @@
   // range, CONFIG.weakRange). The mock keeps its hand-copied numbers (the same values).
   const ruleWeapon = w => GS.app.rules.WEAPONS.find(x => x.id === w) || GS.app.rules.WEAPONS[0];
   function costOf(s, w) { return s.real ? ruleWeapon(w).cost : COST[w]; }
-  function shortOf(s, a, w) { return s.real ? !GS.app.rules.hasWeaponWater({ water: a.water, weapon: w }) : a.water < COST[w]; }
+  function shortOf(s, a, w) { return s.real ? !GS.app.rules.hasWeaponWater(a.g, w) : a.water < COST[w]; }
   function rangeOf(s, w, weak) {
     if (!s.real) return weak ? RANGE.weak : RANGE[w];
     return (weak ? GS.app.rules.CONFIG.weakRange : ruleWeapon(w).range) * SC;
@@ -505,10 +508,26 @@
         self: a.self && a.alive && !o.noMarker, charge: a.charge, frame: F(f / 8), lockGold: a.gold, slow: a.alive && a.slow,
       });
       if (a.flinch > 0 && a.alive) GS.circle(c, sx, sy, 10, 'orangeHi');   // flinch ring (live view only)
+      // item effects (live): the raincoat's shine, the endless tank's dotted ring; both blink in their last 1.5 s
+      if (a.alive && a.buffs) {
+        if (buffShown(a.buffs.coat, f)) GS.circle(c, sx, sy, 11, F(f / 4) & 1 ? 'white' : 'waterHi');
+        if (buffShown(a.buffs.endless, f)) GS.circle(c, sx, sy, 13, 'water', { dash: [2, 2] });
+      }
       if (o.youTag && a.self) {                 // below the feet: the countdown window covers the head
         GS.rect(c, sx - 13, sy + 10, 26, 10, 'ink');
         GS.text8(c, 'YOU', sx, sy + 11, { set: 'H7', align: 'center' });
       }
+    }
+  }
+
+  // items lying on the field: the icon bobbing over a small shadow
+  function drawItems(c, s, f) {
+    for (const it of s.items) {
+      const [x, y] = scr(s, it.x * SC, it.y * SC);
+      if (x < -16 || x > 272 || y < FY0 - 16 || y > FY1 + 16) continue;
+      const bob = [0, -1, -2, -1][F((f + it.id * 7) / 8) % 4];
+      GS.ellipse(c, x, y + 5, 5, 2, 'ink', { fill: true });
+      GS.spr(c, 'item_' + it.kind, x - 8, y - 10 + bob, { pal: ITEM_PAL[it.kind] });
     }
   }
 
@@ -545,6 +564,10 @@
       else if (p.type === 'splash') { const [x, y] = scr(s, p.x + p.vx * k * 2, p.y + p.vy * k * 2); GS.spr(c, 'splash_' + Math.min(4, 1 + F(k / 6)), x - 4, y - 4, { pal: 'water' }); }
       else if (p.type === 'num') { const [x, y] = scr(s, p.x, p.y - k * 0.5); GS.text8(c, p.text, x, y - 4, { set: p.gold ? 'H3' : 'H0', align: 'center' }); }
       else if (p.type === 'out') { const [x, y] = scr(s, p.x, p.y - k * 0.5); GS.text8(c, 'SPLASH OUT!', clamp(x, 52, 204), y - 4, { set: 'H5', align: 'center' }); }
+      else if (p.type === 'tag') { const [x, y] = scr(s, p.x, p.y - k * 0.5); GS.text8(c, p.text, clamp(x, 24, 232), y - 4, { set: p.set || 'H3', align: 'center' }); }
+      // sand: a chunk thrown up and falling back (map px per frame, gravity 0.06); dust: a puff left behind a dash
+      else if (p.type === 'sand') { const [x, y] = scr(s, p.x + p.vx * k, p.y + p.vy * k + 0.03 * k * k); GS.rect(c, x - 1, y - 1, 2, 2, k < 8 ? 'sandTop' : 'sandSide'); }
+      else if (p.type === 'dust') { const [x, y] = scr(s, p.x, p.y - k * 0.25); if (k < 8 || GS.blink(k, 2, 2)) GS.rect(c, x - 1, y - 1, 2, 2, k < 5 ? 'white' : 'gray'); }
     }
   }
 
@@ -633,6 +656,7 @@
     const f = Math.max(0, s.f), ox = -s.cam.x, oy = FY0 - s.cam.y, stage = s.stage || STAGE;
     L.bg1.drawImage(GS.mapCanvas(stage, SC), ox, oy);
     GS.drawZone(L.bg1, ox, oy, SC, s.zone, f);
+    GS.drawBlocks(L.bg1, s.blocks, ox, oy, SC, f, s.sandHp);   // sand (live), over the zone's ring (the fort)
     if (!s.real) GS.drawPumps(L.bg1, STAGE, s.pumps, ox, oy, SC, f);
     GS.drawPuddles(L.bg2, stage, s.pools.map(p => p.level), ox, oy, SC, f);
     GS.fx.wave = GS.state.reduced ? null : { y0: FY0, y1: FY1, amp: 1, period: 32, phase: F(f / 2) };
@@ -640,6 +664,7 @@
     // live: the pump art sits one stand-offset beside its tap and may reach a shoreline, so it goes on obj
     // (above the water, under every part and actor)
     if (s.real) drawPumpsAtTap(c, stage, s.pumps, ox, oy, f);
+    if (s.items) drawItems(c, s, f);
     drawParts(c, s, f);                         // ground splashes under the actors
     drawActors(c, s, f, o);
     drawShots(c, s, f);
@@ -760,6 +785,13 @@
     GS.rect(c, tx, 199, 1, 1, 'gold'); GS.rect(c, tx, 208, 1, 1, 'gold');
     // + the rules' 1e-8 slack: 4.999999999999981 reads 005, and the number reaches the cost exactly when !short
     GS.text8(c, GS.pad(F(a.water + 1e-8), 3), 104, 200, { set: short ? 'HL' : 'H0' });
+    // item effects (live, the special stage): the icon and the seconds left; several take turns every second
+    const on = a.buffs ? Object.keys(a.buffs).filter(k => a.buffs[k] > 0) : [];
+    if (on.length) {
+      const k = on[F(f / 60) % on.length], t = a.buffs[k];
+      if (buffShown(t, f)) GS.spr(c, 'buff_' + k, 129, 200, { pal: ITEM_PAL[k] });
+      GS.text8(c, String(Math.ceil(t - 1e-9)), 140, 200, { set: 'H3' });
+    }
     // weapon name + state
     if (s.label) GS.text8(c, s.label, 16, 208, { set: 'H7' });
     else {
@@ -792,7 +824,7 @@
     if (s.real) {
       const f = Math.max(0, s.f);
       return {
-        stage: s.stage, zone: s.zone, cam: s.cam,
+        stage: s.stage, zone: s.zone, cam: s.cam, blocks: s.blocks,
         pools: s.pools.map((p, i) => ({ ratio: p.water / p.capacity, dryBlink: s.dryAt[i] >= 0 ? f - s.dryAt[i] : undefined })),
         pumps: s.pumps.map(p => ({ level: p.level, operating: p.operating })),
         actors: s.actors.map(a => ({ x: a.x / SC, y: a.y / SC, team: a.team, self: a.self, alive: a.alive, charging: a.charge > 0 })),
@@ -887,6 +919,7 @@
     ring(c, mx - 1, my - 1, 122, 74, 'frameHi');
     c.save(); c.beginPath(); c.rect(mx, my, 120, 72); c.clip();
     c.drawImage(GS.mapCanvas(stage, 0.1), mx, my);
+    GS.drawBlocks(c, s.blocks, mx, my, 0.1, f);
     GS.drawPuddles(c, stage, s.pools.map(p => p.level), mx, my, 0.1, f);
     GS.drawZone(c, mx, my, 0.1, s.zone, f);
     GS.drawPumps(c, stage, s.pumps, mx, my, 0.1, f);
@@ -900,14 +933,15 @@
     c.restore();
     // info
     const A = s.actors, ab = A.filter(a => a.team === 'blue' && a.alive).length, ao = A.filter(a => a.team === 'orange' && a.alive).length;
-    GS.text8(c, 'STAGE ' + (s.real ? s.stageNo : 1), 144, 64);
+    const st = s.real ? GS.stage(s.stage) : null;
+    GS.text8(c, st ? st.tag : 'STAGE 1', 144, 64, { set: st ? st.tagSet : 'H0' });
     GS.text8(c, 'TIME  ' + GS.pad(shownTime(s), 2, '0'), 144, 76);
     GS.text8(c, 'ALIVE', 144, 88);
     GS.text8(c, String(ab), 192, 88, { set: 'H1' }); GS.text8(c, '-', 200, 88); GS.text8(c, String(ao), 208, 88, { set: 'H2' });
     GS.text8(c, 'WATER', 144, 100);
     GS.text8(c, s.real ? GS.pad(s.fieldWater, 3) + '/' + s.fieldTotal : GS.pad(fieldWater(s), 3) + '/900', 144, 110, { set: 'H5' });
     GS.text8(c, WEAPON_LABEL[hudWeapon(s)], 144, 122);
-    GS.text16(c, s.real ? s.stageNo + ' ' + romStageName(s.stage) : GS.MOCK.play.pause.stageLine, 16, 140);
+    GS.text16(c, st ? st.short + ' ' + romStageName(s.stage) : GS.MOCK.play.pause.stageLine, 16, 140);
     menu.draw(c, t);
   }
 
@@ -1079,6 +1113,11 @@
     hp6: '通常弾 1発で ダウン!', hp4: 'あと 1発で ダウン!', blue25: 'ブルー あと5秒で かち!', orange25: 'オレンジ あと5秒で かち!',
     left15: 'のこり 15秒!', hints: ['陣地の中は ダメージ×2', 'ポンプ中は うてない!', '水が へった! 水たまりへ'],
     demo: ['水たまりで 水を ほきゅう!', '陣地を とると こうげき×2!', 'ぜんめつ させても かち!', '陣地を 30秒 とれば かち!'],
+    // the special stage: its two hints at the start, YOU's item lines, the tag over whoever takes an item
+    sand: ['すなは うつと くずれる!', 'ひかる すなに アイテム!'],
+    items: { dash: 'ダッシュぐつ! はやい!', nozzle: 'ジャンボノズル! ×2', coat: 'レインコート! むてき!',
+      endless: 'むげんタンク! うちほうだい', bucket: 'バケツ! 水が まんタン', heal: 'ばんそうこう! かいふく' },
+    itemTag: { dash: 'DASH!', nozzle: '×2!', coat: 'GUARD!', endless: 'FREE!', bucket: 'FULL!', heal: 'HEAL!' },
   };
   // active: this screen shows the real match (set by enter; else the mock path runs). v: the view.
   // mouseIdle: steps without mouse motion / button (see readControl). pendingWeapon: a weapon picked during 3-2-1,
@@ -1092,7 +1131,7 @@
   const youWeapon = () => real.pendingWeapon || GS.app.game.actors[0].weapon;
 
   function romStageName(id) { const st = GS.stage(id); return st ? (st.nameRom ? st.nameRom.join('') : st.name) : ''; }
-  function realCountdownLines(s) { const l = GS.MOCK.play.countdown.lines; return ['STAGE ' + s.stageNo + ' ' + romStageName(s.stage), l[1], l[2]]; }
+  function realCountdownLines(s) { const l = GS.MOCK.play.countdown.lines; return [GS.stage(s.stage).tag + ' ' + romStageName(s.stage), l[1], l[2]]; }
   function poolDir(stage, i) { const st = GS.stage(stage), p = st && st.pools[i]; return p && p.dir ? p.dir : ''; }
 
   // The Game operates a pump AT its tap point, so live draws the pump art one PUMP_LAYOUT.stand away: the
@@ -1128,6 +1167,8 @@
       hpShown: g.actors[0].hp, userAim: null, wedge: null, dryAt: g.puddles.map(() => -1), dim: false, endE: null,
       assistId: -1, lockId: -1, lockF: 0, stop: 0,
       fieldWater: 0, fieldTotal: Math.round(g.initialTotalWater - g.actors.length * C.initialWater),
+      // the Game's sand blocks and lying items (empty but on the special stage), and a block's full hp (its cracks)
+      blocks: g.blocks, items: g.items, sandHp: app.rules.SAND.hp,
       seenFx: new WeakSet(), seenEv: new WeakSet(), boost: new Map(), lastCombat: g.combatSequence,
       tips: {}, zoneSeen: 'neutral', zoneSince: 0, zoneSaid: 'neutral', poolW: g.puddles.map(p => p.water), dryArmed: g.puddles.map(() => true),
       prevHp: g.actors[0].hp, prevRemain: g.remainingTime(), prevScores: g.scores.slice(), lastSec: 99, heartT: 0,
@@ -1139,6 +1180,7 @@
       x: ga.x * SC, y: ga.y * SC, hp: ga.hp, water: ga.water, weapon: ga.weapon, pose: 'field', faceLeft: ga.team === 1,
       dir: ga.team ? 8 : 0, ang: ga.aim, flashT: 0, lastFlash: -99, hpBarT: 0, charge: 0, chargeLv: 0, locked: false, wasLocked: false,
       aimA: null, rayX: null, rayY: null, recoil: 0, flinch: 0, ko: -1, moving: false, vulnerable: false, gold: false, slow: false, pumpNear: false,
+      buffs: ga.buffs,                         // item effects, seconds left (the Game's own object)
       cool: { normal: 0, splash: 0, long: 0 }, coolT: { normal: 12, splash: 48, long: 900 }, gcool: 0, gcoolTotal: 12, shots: ga.stats.shots,
     }));
     syncView(v);
@@ -1177,8 +1219,8 @@
       a.recoil = ga.alive ? ga.recoil * 60 : 0; a.flinch = ga.alive ? ga.flinch : 0;
       a.moving = ga.alive && Math.hypot(ga.vx, ga.vy) > 1;
       a.vulnerable = rules.incomingDamageMultiplier(ga) > 1;
-      a.gold = v.x2 === a.team;
-      a.slow = ga.alive && ga.puddleId != null;
+      a.gold = v.x2 === a.team || ga.buffs.nozzle > 0;             // the zone's x2, or the nozzle item's
+      a.slow = ga.alive && ga.puddleId != null && !(ga.buffs.dash > 0);
       // waits in frames; a wait that grows starts a new "total" (icon shadow = rest / total)
       WEAP.forEach(w => { const cw = ga.weaponCooldowns[w] * 60; if (cw > a.cool[w] + 0.5) a.coolT[w] = cw; a.cool[w] = cw; });
       const gc = ga.cooldown * 60; if (gc > a.gcool + 0.5) a.gcoolTotal = gc; a.gcool = gc;
@@ -1204,6 +1246,7 @@
   function processMatch(v) {
     const g = GS.app.game, demo = v.kind === 'demo';
     const fx = matchEffects(v, g);
+    matchDust(v);
     const kills = matchHits(v, g, fx);
     matchKOs(v, g, kills, demo);
     matchShots(v, g);
@@ -1223,8 +1266,37 @@
       if (e.kind === 'splash') v.parts.push({ type: 'drip', x: e.x * SC, y: e.y * SC, t0: f, dur: 8 });
       else if (e.kind === 'beam') { v.beams.push({ x0: e.x * SC, y0: e.y * SC, x1: e.endX * SC, y1: e.endY * SC, t0: f, dur: 14 }); beamBoost[e.owner] = !!e.boosted; }
       else if (e.kind === 'hit') hitAt.set(e.x + ',' + e.y, e);
+      else if (e.kind === 'crumble') sandBurst(v, e);
+      else if (e.kind === 'glow') v.parts.push({ type: 'spark', x: e.x * SC, y: e.y * SC, t0: f, dur: 8 });   // a block lights up
+      else if (e.kind === 'item') {
+        // the tag over whoever took it; YOU's chime at once (the message line may wait in the queue)
+        const a = v.actors[e.owner];
+        v.parts.push({ type: 'spark', x: e.x * SC, y: e.y * SC, t0: f, dur: 8 });
+        v.parts.push({ type: 'tag', x: a.x, y: a.y - 14, t0: f, dur: 36, text: TXT.itemTag[e.item], set: a.team === 'blue' ? 'H1' : 'H2' });
+        if (e.owner === 0) v.ev.push({ sfx: 'item' });
+      }
     }
     return { hitAt, beamBoost };
+  }
+  // a broken sand block: chunks thrown up from it, and its crumble sound when it is near the screen. An item
+  // coming out sparkles; one that was hidden (the block did not glow) also gets a "!".
+  function sandBurst(v, e) {
+    const x = e.x * SC, y = e.y * SC, f = v.f;
+    for (let i = 0; i < 8; i++) {
+      const an = -Math.PI / 2 + (i / 7 - 0.5) * 2.4;
+      v.parts.push({ type: 'sand', x: x + (i - 3.5) * 1.5, y, vx: Math.cos(an) * (0.3 + (i % 3) * 0.15), vy: Math.sin(an) * 0.6, t0: f, dur: 18 });
+    }
+    if (e.item) {
+      v.parts.push({ type: 'spark', x, y, t0: f, dur: 8 });
+      if (!e.glow) v.parts.push({ type: 'tag', x, y: y - 12, t0: f, dur: 30, text: '!', set: 'H3' });
+    }
+    const [sx, sy] = scr(v, x, y);
+    if (sx > -48 && sx < 304 && sy > FY0 - 48 && sy < FY1 + 48) v.ev.push({ sfx: 'crumble', pan: panOf(v, x) });
+  }
+  // a dashing actor (the item) leaves a puff behind every 4f while it moves
+  function matchDust(v) {
+    if (v.f % 4) return;
+    for (const a of v.actors) if (a.alive && a.moving && a.buffs.dash > 0) v.parts.push({ type: 'dust', x: a.x, y: a.y + 5, t0: v.f, dur: 12 });
   }
 
   // new combat events: hit marks, YOU's damage numbers (summed per target), one hit sound, the hit stop and the
@@ -1232,13 +1304,15 @@
   function matchHits(v, g, fx) {
     const A = v.actors, f = v.f;
     let youHit = false, hurt = null;
-    const nums = {}, kills = [];
+    const nums = {}, kills = [], guarded = new Set();
     for (const e of g.combatEvents) {
       if (e.id <= v.lastCombat) continue;
       v.lastCombat = e.id;
       const t = A[e.target];
       markHit(v, t, e.x * SC, e.y * SC);
-      if (e.owner === 0) {
+      // a raincoat (item) shed it: GUARD over the target (once a frame) instead of a damage number
+      if (e.guarded) { if (!guarded.has(t.id)) { guarded.add(t.id); v.parts.push({ type: 'tag', x: t.x, y: t.y - 10, t0: f, dur: 20, text: 'GUARD', set: 'H0' }); } }
+      else if (e.owner === 0) {
         youHit = true;
         const hx = fx.hitAt.get(e.x + ',' + e.y);
         const gold = !e.weak && (e.weapon === 'long' ? !!fx.beamBoost[0] : hx && v.boost.has(hx.seed) ? v.boost.get(hx.seed) : g.zoneOwner === 0);
@@ -1312,6 +1386,7 @@
     for (const e of g.events) {
       if (v.seenEv.has(e)) continue;
       v.seenEv.add(e);
+      if (e.type === 'item' && e.actor === 0 && !demo) pushMsg(v, 'item', TXT.items[e.item], 'blue');
       if (e.type === 'finale' && !demo) {
         pushMsg(v, 'finale', '水が つきた! のこり' + Math.ceil(g.remainingTime() - 1e-8) + '秒', 'danger', { dur: 180, sfx: 'buzz' });
         const cur = v.msg.cur;                    // the most urgent line: an open window closes now (6f) to make room
@@ -1358,6 +1433,11 @@
         if (!v.tips.zone && rules.distance(you, rules.ZONE) <= rules.ZONE.r) { v.tips.zone = 1; pushMsg(v, 'tip', TXT.hints[0], 'std'); }
         if (!v.tips.pump && you.tapId) { v.tips.pump = 1; pushMsg(v, 'tip', TXT.hints[1], 'std'); }
         if (!v.tips.water && you.water < 15) { v.tips.water = 1; pushMsg(v, 'tip', TXT.hints[2], 'std'); }
+      }
+      if (v.blocks.length && !v.tips.sand && v.f > CD_MSG) {   // a stage with sand: its two hints, once, after the start line
+        v.tips.sand = 1;
+        pushMsg(v, 'tip', TXT.sand[0], 'std');
+        pushMsg(v, 'sand', TXT.sand[1], 'std');
       }
     }
     v.prevScores = g.scores.slice(); v.prevRemain = v.remaining; v.prevHp = you.hp;

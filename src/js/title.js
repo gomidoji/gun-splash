@@ -1,6 +1,6 @@
 /* ガン・スプラッシュ 復刻版 — title screens
  * States: boot (company logo), opening (perspective flyover of the courtyard + 4 captions), title (PUSH),
- * menu, option, stage1..stage4 (stage select).
+ * menu, option, stage1..stage5 (stage select; stage5 = the special stage: TV static and ？？？ until it is open).
  * Also exposes GS.screens.title.drawLogo / logoCanvas / LOGO_BOX for the manual cover.
  * Plain classic script; everything is drawn into GS.layers with palette colours only.
  * Stage data (GS.STAGES / GS.RULES) is converted from game.mjs by data.js. With the real game (GS.app.live)
@@ -18,7 +18,7 @@
   const reduced = () => !!GS.state.reduced;
   const isTouchUI = () => !!GS.state.touch || GS.state.layout !== 'pc';
   const live = () => !!(GS.app && GS.app.live);
-  const stageAt = n => (GS.STAGES || [])[n - 1] || null;            // n = 1..4 (states stage1..stage4)
+  const stageAt = n => (GS.STAGES || [])[n - 1] || null;            // n = 1..5 (states stage1..stage5)
 
   // =====================================================================
   // LOGO. Hand-drawn masks on a 4px grid.
@@ -762,6 +762,12 @@
   // Stage progress (live build): a stage opens with a win on the one before it (GS.app.stageOpen). Without a live
   // GS.app (mock, manual stills) every stage is open.
   const stageLocked = n => { const st = stageAt(n); return !!st && live() && typeof GS.app.stageOpen === 'function' && !GS.app.stageOpen(st.id); };
+  // The stage select's pages: every stage, the special one (last) included from the start. Until it opens it keeps its
+  // secret: TV static (砂嵐) in place of its map, and its name and description read ？？？. The first time the page
+  // shows after the win that opened it, the static clears off the map (UNVEIL).
+  const stageCount = () => Math.max(1, (GS.STAGES || []).length);
+  const STARS = 5;                                                     // CPU strength, ★ out of 5 (the special stage: 5)
+  const SECRET = '？？？';
   const unlockHint = n => (stageAt(n - 1) ? stageAt(n - 1).levelRom : '') + 'で かつと あそべる!';
   const lockedSay = n => 'まだ あそべません。' + unlockHint(n);   // aria-live (sayStage, sortie)
   // A stage not open yet: its preview map, still, in dark greys by brightness (built once per stage).
@@ -782,16 +788,60 @@
   // preview map at (x, y): ground, walls, puddles (initial level), pumps (2x2), zone ring r8
   function drawPreview(c, st, x, y, f) {
     c.drawImage(GS.mapCanvas(st.id, MAP.s), x, y);
+    GS.drawBlocks(c, st.blocks, x, y, MAP.s, f);
     GS.drawPuddles(c, st.id, st.pools.map(p => GS.poolLevel(p.initial, p.capacity)), x, y, MAP.s, f);
     GS.drawPumps(c, st.id, null, x, y, MAP.s, f);
     GS.drawZone(c, x, y, MAP.s, 'neutral', f);
   }
-  function drawStage(L, n, f, mosaic, locked) {
+  // TV static (砂嵐) at (x, y) over MAP's size: a grey per pair of dots (a CRT's smear) from hash2 of the pair and
+  // the frame, new every 2 frames, so a still always looks the same; a brighter band rolls down every 150f. reveal
+  // 0..1: that share of the dots is clear and shows what is drawn under it (the unveil's dissolve). The picture is
+  // only redrawn when it changes (reduced motion: one still picture without the band, drawn once).
+  const STATIC = ['ink', 'dim', 'dim', 'grayDk', 'grayDk', 'gray', 'gray', 'white'];
+  const ST = { cv: null, im: null, px: null, ramp: null, level: null, order: null, k: -1, key: '' };
+  function drawStatic(c, x, y, f, reveal) {
+    const W = MAP.w, H = MAP.h;
+    if (!ST.cv) {
+      ST.cv = GS.makeCanvas(W, H);
+      ST.im = ST.cv.getContext('2d').createImageData(W, H);
+      ST.px = new Uint32Array(ST.im.data.buffer);                       // ABGR (little-endian), as the opening's floors
+      ST.ramp = STATIC.map(name => { const [r, g, b] = GS.rgb(name); return (0xFF000000 | b << 16 | g << 8 | r) >>> 0; });
+      ST.level = new Uint8Array(W * H);
+      ST.order = new Float32Array(W * H);                               // when each dot clears in the dissolve
+      for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) ST.order[j * W + i] = hash2(i, j + 77 * 4096);
+    }
+    const still = reduced(), k = still ? 0 : F(f / 2), band = still ? -99 : (f % 150) - 20, key = k + ',' + band + ',' + reveal;
+    if (key !== ST.key) {
+      ST.key = key;
+      if (k !== ST.k) {
+        ST.k = k;
+        for (let j = 0; j < H; j++) for (let i = 0; i < W; i += 2) {
+          const v = F(hash2(i >> 1, j + k * 4096) * 8);
+          ST.level[j * W + i] = v; ST.level[j * W + i + 1] = v;
+        }
+      }
+      for (let j = 0, p = 0; j < H; j++) {
+        const lift = j >= band && j < band + 8 ? 3 : 0;
+        for (let i = 0; i < W; i++, p++) ST.px[p] = reveal > 0 && ST.order[p] < reveal ? 0 : ST.ramp[Math.min(STATIC.length - 1, ST.level[p] + lift)];
+      }
+      ST.cv.getContext('2d').putImageData(ST.im, 0, 0);
+    }
+    c.drawImage(ST.cv, x, y);
+  }
+  // the unveil (frames of the state): static as before, then it dissolves off the map; the name shows when it is gone
+  const UNVEIL = { hold: 40, fade: 60 };
+  // unveil: frames since the page opened when it unveils the special stage, else -1
+  function drawStage(L, n, f, mosaic, locked, unveil = -1) {
     const st = stageAt(n); if (!st) return;
+    const secret = locked && st.special, unveiling = unveil >= 0 && unveil < UNVEIL.hold + UNVEIL.fade, hide = secret || unveiling;
     drawPattern(L, true, f);
-    if (locked) L.bg1.drawImage(greyMap(st), MAP.x, MAP.y);
-    else drawPreview(L.bg1, st, MAP.x, MAP.y, f);
-    if (mosaic > 1) GS.mosaicRegion(L.bg1, MAP.x, MAP.y, MAP.w, MAP.h, mosaic);
+    if (secret) drawStatic(L.bg1, MAP.x, MAP.y, f, 0);
+    else {
+      if (locked) L.bg1.drawImage(greyMap(st), MAP.x, MAP.y);
+      else drawPreview(L.bg1, st, MAP.x, MAP.y, f);
+      if (unveiling) drawStatic(L.bg1, MAP.x, MAP.y, f, GS.step(unveil, UNVEIL.hold, UNVEIL.fade));
+      else if (mosaic > 1) GS.mosaicRegion(L.bg1, MAP.x, MAP.y, MAP.w, MAP.h, mosaic);   // the switch-in (8 -> 1 over 8f)
+    }
     // frame (2px, x14..137 y34..109) and start directions; a stage not open yet: まだ あそべない across the map
     ring(L.hud, 14, 34, 124, 76, 'ink'); ring(L.hud, 15, 35, 122, 74, 'frameHi');
     if (locked) {
@@ -802,16 +852,16 @@
     }
     // texts
     GS.banner(L.hud, 'STAGE SELECT', 32, 8, { set: 'H0' });
-    GS.text8(L.hud, 'STAGE ' + st.no, 144, 36);
-    GS.text16(L.hud, st.nameRom[0], 144, 48);
-    GS.text16(L.hud, st.nameRom[1], 144, 64);
+    GS.text8(L.hud, st.tag, 144, 36, { set: st.tagSet });
+    GS.text16(L.hud, hide ? SECRET : st.nameRom[0], 144, 48);
+    if (!hide) GS.text16(L.hud, st.nameRom[1], 144, 64);
     GS.text16(L.hud, st.levelRom, 144, 83, { set: 'H7' }); // y83: 1px above the 8px grid on purpose
     GS.text8(L.hud, 'CPU', 144, 100);
-    for (let i = 0; i < 4; i++) GS.text8(L.hud, i < st.cpu ? '★' : '☆', 176 + i * 8, 100, { set: i < st.cpu ? 'H3' : 'H0' });
+    for (let i = 0; i < STARS; i++) GS.text8(L.hud, i < st.cpu ? '★' : '☆', 176 + i * 8, 100, { set: i < st.cpu ? 'H3' : 'H0' });
     GS.win(L.hud, 8, 116, 240, 60); // y116..175, off the 8px grid on purpose
-    st.descRom.forEach((s, i) => GS.text16(L.hud, s, 16, 122 + i * 16));
+    (hide ? [SECRET] : st.descRom).forEach((s, i) => GS.text16(L.hud, s, 16, 122 + i * 16));
     GS.text16(L.hud, locked ? unlockHint(n) : ruleLine(), 128, 180, { set: 'H3', align: 'center' });
-    GS.text8(L.hud, '◀ ' + n + '/4 ▶', 128, 200, { align: 'center' });
+    GS.text8(L.hud, '◀ ' + n + '/' + stageCount() + ' ▶', 128, 200, { align: 'center' });
   }
 
   // =====================================================================
@@ -855,7 +905,7 @@
   // the stage the menu's ゲームスタート opens: GS.app.stageToShow() (live: the stage a win just opened, else the
   // selected one) or the last one shown (mock)
   function startStageNo() {
-    if (live() && typeof GS.app.stageToShow === 'function') return clamp(GS.app.stageNo(GS.app.stageToShow()) | 0 || 1, 1, 4);
+    if (live() && typeof GS.app.stageToShow === 'function') return clamp(GS.app.stageNo(GS.app.stageToShow()) | 0 || 1, 1, stageCount());
     return lastStage;
   }
   // stage select shows stage n: in the live build that is GS.app.selectedStage (toStageSelect / ゲームスタート
@@ -893,7 +943,8 @@
   // stage select: announce the selected stage (on entry and on every switch)
   function sayStage(n) {
     const st = stageAt(n); if (!st) return;
-    GS.shell.say('ステージ' + st.no + '／4 ' + st.name + ' レベル ' + st.levelRom + (stageLocked(n) ? ' ' + lockedSay(n) : '') + ' CPUの つよさ ' + st.cpu + '／4 ' + st.descRom.join(' '), { sub: false });
+    const secret = st.special && stageLocked(n);
+    GS.shell.say((st.special ? 'スペシャルステージ ' : 'ステージ' + st.no + '／' + stageCount() + ' ') + (secret ? 'ひみつ' : st.name) + ' レベル ' + st.levelRom + (stageLocked(n) ? ' ' + lockedSay(n) : '') + ' CPUの つよさ ' + st.cpu + '／' + STARS + (secret ? '' : ' ' + st.descRom.join(' ')), { sub: false });
   }
   // BGM: from the top (also with おんがく OFF, until the next screen); SE: one shot
   function playTest() {
@@ -904,10 +955,11 @@
 
   const def = {
     title: 'タイトル',
-    states: ['boot', 'opening', 'title', 'menu', 'option', 'stage1', 'stage2', 'stage3', 'stage4'],
+    states: ['boot', 'opening', 'title', 'menu', 'option', 'stage1', 'stage2', 'stage3', 'stage4', 'stage5'],
     labels: {
       boot: '会社ロゴ', opening: 'オープニング', title: 'タイトル（PUSH）', menu: 'メニュー', option: 'オプション',
       stage1: 'ステージ選択 1', stage2: 'ステージ選択 2', stage3: 'ステージ選択 3', stage4: 'ステージ選択 4',
+      stage5: 'ステージ選択 スペシャル',
     },
     LOGO_BOX,
     logoCanvas,
@@ -940,7 +992,11 @@
         return;
       }
       const n = +String(st).replace('stage', '') || 1;
-      S.n = clamp(n, 1, 4); selectStage(S.n);
+      S.n = clamp(n, 1, stageCount()); selectStage(S.n);
+      // the special stage, first shown since the win that opened it (GS.app knows): its static clears (reduced motion:
+      // the map at once)
+      const sp = stageAt(S.n);
+      S.unveil = !!(live() && sp && typeof GS.app.takeUnveil === 'function' && GS.app.takeUnveil(sp.id)) && !reduced();
       sayStage(S.n);
       if (params.fade) GS.transition('fadeIn', { frames: 16 });
     },
@@ -1049,7 +1105,9 @@
           syncOptLabels(m);
           return;
         }
-        default: { // stage1..4
+        default: { // stage1..5
+          if (S.unveil && t === UNVEIL.hold) GS.sfx('drop');                 // the static starts to clear
+          if (S.unveil && t === UNVEIL.hold + UNVEIL.fade) GS.sfx('line');   // the map and the name are there
           if (S.sortie) { if (!S.sortie.done && S.sortie.black != null && ++S.sortie.black >= 8) goPlay(); return; }
           if (S.busy) return;
           let d = 0;
@@ -1059,7 +1117,8 @@
           else if (input.hit(128, 196, 64, 16) === 'tap') d = 1;
           if (d) {
             GS.sfx('cursor');
-            GS.go('title', 'stage' + (((S.n - 1 + d + 4) % 4) + 1), { switched: true, keepFx: true });
+            const count = stageCount();
+            GS.go('title', 'stage' + (((S.n - 1 + d + count) % count) + 1), { switched: true, keepFx: true });
             return;
           }
           if (input.pressed('ok') || input.hit(14, 34, 124, 76) === 'tap') { sortie(); return; }
@@ -1087,7 +1146,7 @@
         }
         case 'option': drawOption(L, S.m, t, f); return;
         default:
-          if (S.n) drawStage(L, S.n, f, S.params.switched && !reduced() && t < 8 ? 8 - t : 1, stageLocked(S.n));
+          if (S.n) drawStage(L, S.n, f, S.params.switched && !reduced() && t < 8 ? 8 - t : 1, stageLocked(S.n), S.unveil ? t : -1);
       }
     },
 
@@ -1103,7 +1162,7 @@
           try { drawOption(L, newOptMenu(0), 0, 0); } finally { testIdx = keep; }
           return;
         }
-        default: drawStage(L, clamp(+String(st).replace('stage', '') || 1, 1, 4), 0, 1, false);   // every stage open
+        default: drawStage(L, clamp(+String(st).replace('stage', '') || 1, 1, stageCount()), 0, 1, false);   // every stage open
       }
     },
 
@@ -1136,7 +1195,7 @@
         title: { logo: [128, 68], logoKana: [68, 36], subtitle: [128, 100], catch: [128, 120], push: [128, 156], credit: [128, 196], blue: [32, 160], orange: [224, 160] },
         menu: { window: [132, 160], cursor: [68, 144], start: [80, 144], manual: [80, 160], option: [80, 176], logo: [128, 68] },
         option: { heading: [128, 24], window: [128, 120], sound: [32, 56], bgm: [32, 76], stereo: [32, 96], warn: [32, 116], test: [32, 136], testName: [192, 156], back: [32, 180], value: [192, 52], left: [156, 52], right: [228, 52] },
-        stage1: stage, stage2: stage, stage3: stage, stage4: stage,
+        stage1: stage, stage2: stage, stage3: stage, stage4: stage, stage5: stage,
       };
     })(),
   };
