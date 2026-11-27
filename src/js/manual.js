@@ -23,23 +23,31 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
   // =====================================================================
-  // pages and views (表1, 表2, p1..p20, 表3, 表4 = 24 pages, then the e-only appendix)
+  // pages and views (manual.html's #book: 表1, 表2, p1..p17, ひみつ1, ひみつ2, p18..p20, 表3, 表4 = 26 pages, then the
+  // e-only appendix #extra). Each page's data-label / data-title name it.
   // =====================================================================
   // page geometry in page px (manual.css: one page is 340x496, 85x124 mm at 4 px per mm)
   const PAGE_W = 340, PAGE_H = 496, SPREAD_W = 2 * PAGE_W;
-  const PAGES = ['cover1', 'cover2'];
-  for (let i = 1; i <= 20; i++) PAGES.push('p' + i);
-  PAGES.push('cover3', 'cover4');
-  const SPREADS = [['cover1'], ['cover2', 'p1']];
-  for (let n = 2; n <= 18; n += 2) SPREADS.push(['p' + n, 'p' + (n + 1)]);
-  SPREADS.push(['p20', 'cover3'], ['cover4'], ['extra']);
-  // ひみつ: the special stage's spread (sp1 ひみつ1, sp2 ひみつ2) after p.17, a 袋とじ (sealed pages). Until the special
-  // stage opens, a seal covers both pages and says how to open it; once it is open, the seal shows a pull tab, and a
-  // tap tears it off (tearSeal). This browser remembers the tear (SEAL_KEY); when the stage is closed again (the
-  // progress was reset) the spread is sealed again.
-  const SECRET = ['sp1', 'sp2'], SEAL_KEY = 'gs-manual-seal-v1';
-  PAGES.splice(PAGES.indexOf('p17') + 1, 0, ...SECRET);
-  SPREADS.splice(SPREADS.findIndex(v => v[1] === 'p17') + 1, 0, SECRET);
+  const pageEl = id => document.getElementById(id);
+  // the pages in book order; a spread is a left page with the right page after it, any other page stands alone
+  const PAGES = $$('#book > .page').map(p => p.id);
+  const SPREADS = [];
+  for (let i = 0; i < PAGES.length; i++) {
+    const a = pageEl(PAGES[i]), b = pageEl(PAGES[i + 1]);
+    if (a.classList.contains('L') && b && b.classList.contains('R')) SPREADS.push([PAGES[i], PAGES[++i]]);
+    else SPREADS.push([PAGES[i]]);
+  }
+  SPREADS.push(['extra']);
+  const ALL = PAGES.concat(['extra']);
+  const SINGLES = ALL.map(p => [p]);
+
+  // ひみつ: the special stage's spread (.page.secret: ひみつ1, ひみつ2 after p.17), a 袋とじ. Until the special stage
+  // opens, a seal covers it and says how to open it; once it is open, the seal shows a pull tab that starts to wiggle
+  // after a while (nudgeLater), and a tap tears the seal off (tearSeal). This browser remembers the tear (SEAL_KEY);
+  // when the stage is closed again (the progress was reset) the spread is sealed again. The state is classes on
+  // <body>, as the viewer's other modes: sealed, tearable (the pull tab), tearing, nudge; the もくじ line and the
+  // thumbnails follow from them.
+  const SECRET_PAGES = $$('#book > .page.secret'), SECRET = SECRET_PAGES.map(p => p.id), SEAL_KEY = 'gs-manual-seal-v1';
   // the game's own word when the manual sits in its iframe (GS.app.stageOpen, ?unlock=1 included), else the progress
   // the game saved (5: the special stage's number)
   function specialOpen() {
@@ -49,44 +57,37 @@
     } catch (e) { /* a parent of another origin */ }
     return (GS.loadPrefs('gs-progress-v1', { opened: 1 }).opened | 0) >= 5;
   }
-  const secretOpen = specialOpen();
+  let secretOpen = specialOpen();
   const seal = GS.loadPrefs(SEAL_KEY, { torn: false });
-  if (!secretOpen && seal.torn) { seal.torn = false; GS.savePrefs(SEAL_KEY, seal); }
-  // The seal on both pages: sealed, the content under it inert and hidden from readers, the page titles ふくろとじ;
-  // tearable (the pull tab) once the special stage is open. The もくじ line follows (ふくろとじ / NEW).
-  function setSealed(sealed) {
-    SECRET.forEach(id => {
-      const p = document.getElementById(id); if (!p) return;
-      p.classList.toggle('sealed', sealed);
-      p.classList.toggle('tearable', sealed && secretOpen);
-      for (const e of p.children) {
-        if (e.classList.contains('seal')) continue;
-        e.inert = sealed;
-        if (sealed) e.setAttribute('aria-hidden', 'true'); else e.removeAttribute('aria-hidden');
-      }
-      p.dataset.realTitle ||= p.dataset.title;
-      p.dataset.title = sealed ? 'ふくろとじ' : p.dataset.realTitle;
-    });
-    const line = document.querySelector('#p1 .toc-secret');
-    if (line) line.classList.toggle('sealed', sealed);
+  // the seal as the stage and the tear say; the pages under it are inert while sealed
+  function applySeal() {
+    if (!secretOpen && seal.torn) { seal.torn = false; GS.savePrefs(SEAL_KEY, seal); }
+    const sealed = !seal.torn;
+    body.classList.toggle('sealed', sealed);
+    body.classList.toggle('tearable', sealed && secretOpen);
+    for (const p of SECRET_PAGES) for (const e of p.children) if (!e.classList.contains('seal')) e.inert = sealed;
   }
-  setSealed(!seal.torn);
+  applySeal();
   // The game keeps this manual loaded once opened: when the special stage opens (or closes) meanwhile, the next
-  // opening (a page jump or the focus coming back) reloads it, with the seal as it should be.
-  const recheckSecret = () => { if (specialOpen() !== secretOpen) location.reload(); };
+  // opening (a page jump or the focus coming back) updates the seal.
+  function recheckSecret() {
+    if (specialOpen() === secretOpen) return;
+    secretOpen = !secretOpen;
+    applySeal();
+    thumbsDirty = true;
+    nudgeLater();
+  }
   window.addEventListener('hashchange', recheckSecret);
   window.addEventListener('focus', recheckSecret);
-  const ALL = PAGES.concat(['extra']);
-  const SINGLES = ALL.map(p => [p]);
-  const label = id => (id === 'extra' ? '付録' : id.indexOf('cover') === 0 ? '表' + id.slice(5) : SECRET.includes(id) ? 'ひみつ' + id.slice(2) : 'p.' + id.slice(1));
+  const label = id => { const e = pageEl(id); return (e && e.dataset.label) || id; };
   function viewLabel(v) {
     if (v.length === 1) return label(v[0]);
     const a = v[0], b = v[1];
     if (a[0] === 'p' && b[0] === 'p') return 'p.' + a.slice(1) + '–' + b.slice(1);
     return label(a) + '–' + label(b);
   }
-  const pageEl = id => document.getElementById(id);
-  const titleOf = id => { const e = pageEl(id); return (e && e.dataset.title) || ''; };
+  // a sealed secret page goes by ふくろとじ
+  const titleOf = id => { const e = pageEl(id); return !e ? '' : body.classList.contains('sealed') && SECRET.includes(id) ? 'ふくろとじ' : e.dataset.title || ''; };
   // the title a view goes by: its first page's, except the 表2+p1 spread, which goes by p1 (もくじ)
   const viewTitle = v => titleOf(v.length === 2 && v[0] === 'cover2' ? v[1] : v[0]);
 
@@ -488,42 +489,28 @@
       S.orange.ys.forEach(y => GS.actor(c, S.orange.x * sc, y * sc, { team: 'orange', faceLeft: true, aimDir16: 8, tank: 4 }));
       return true;
     },
-    // ひみつ1: the special stage at the canvas's width (144x86 = 0.12), sand and all, the spawn points as 2x2 dots
-    'map-special'(cv) {
-      const st = stageData() && GS.stage('special');
-      if (!st || !st.special) return false;
-      const sc = cv.width / 1200, c = ctxOf(cv);
-      drawStageMap(c, 'special', sc);
-      GS.drawBlocks(c, st.blocks, 0, 0, sc, 0);
-      GS.drawPumps(c, 'special', null, 0, 0, sc, 0);
-      GS.drawZone(c, 0, 0, sc, 'neutral', 0);
-      spawnDots(c, sc);
-      return true;
-    },
     'weak-icon'(cv) {
       const c = ctxOf(cv); GS.rect(c, 0, 0, 16, 16, 'band');
       GS.spr(c, 'bullet_weak', 2, 6, { pal: 'blue' }); GS.spr(c, 'bullet_weak', 7, 6, { pal: 'blue' }); GS.spr(c, 'bullet_weak', 12, 6, { pal: 'blue' });
       return true;
     },
   };
-  // p16: one small map per stage (100x60), the spawn points as 2x2 team-colour dots
-  STAGE_IDS.forEach((id, i) => {
-    ART['preview-' + (i + 1)] = function (cv) {
-      if (!stageData()) return false;
-      const sc = 1 / 12, c = ctxOf(cv);
-      drawStageMap(c, id, sc);
-      GS.drawPumps(c, id, null, 0, 0, sc, 0);
-      GS.drawZone(c, 0, 0, sc, 'neutral', 0);
-      spawnDots(c, sc);
-      return true;
-    };
-  });
-  // the spawn points on a small map: 2x2 dots in the team colours
-  function spawnDots(c, sc) {
-    const S = GS.SPAWN;
+  // A small map of a stage at the canvas's width (p.16: 100x60 = 1/12 each; ひみつ1: 144x86 = 0.12): ground, puddles at
+  // their initial levels, sand, pumps, the zone ring, the spawn points as 2x2 team-colour dots.
+  const smallMap = id => cv => {
+    const st = stageData() && GS.stage(id);
+    if (!st || st.id !== id) return false;
+    const sc = cv.width / 1200, c = ctxOf(cv), S = GS.SPAWN;
+    drawStageMap(c, id, sc);
+    GS.drawBlocks(c, st.blocks, 0, 0, sc, 0);
+    GS.drawPumps(c, id, null, 0, 0, sc, 0);
+    GS.drawZone(c, 0, 0, sc, 'neutral', 0);
     S.blue.ys.forEach(y => GS.rect(c, R(S.blue.x * sc) - 1, R(y * sc) - 1, 2, 2, 'blue'));
     S.orange.ys.forEach(y => GS.rect(c, R(S.orange.x * sc) - 1, R(y * sc) - 1, 2, 2, 'orange'));
-  }
+    return true;
+  };
+  STAGE_IDS.forEach((id, i) => { ART['preview-' + (i + 1)] = smallMap(id); });
+  ART['map-special'] = smallMap('special');
   function mark(cv, a) {
     const c = ctxOf(cv); ground(c, 28, 28, 'g1a', 'g1b');
     GS.actor(c, 14, 13, Object.assign({ aimDir16: 0 }, a));
@@ -804,8 +791,23 @@
     }
     syncUi();
     if (changed && !opts.silent) live.textContent = viewLabel(v) + ' ' + viewTitle(v);
+    if (changed || opts.force) nudgeLater();
     notifyPage();
   }
+  // The 袋とじ's pull tab waits: it starts to wiggle only once the secret spread has been on screen for NUDGE_AFTER ms
+  // without being torn. The wait starts again each time the spread comes into view or the manual is shown again
+  // (focus); hidden (blur: the game closes it, another window comes up) nothing wiggles unseen. Not in text mode, and
+  // never with reduced motion.
+  const NUDGE_AFTER = 20000;
+  let nudgeTimer = 0;
+  function nudgeLater() {
+    clearTimeout(nudgeTimer);
+    body.classList.remove('nudge');
+    if (prefs.text || !secretOpen || seal.torn || !viewOf(cur).some(id => SECRET.includes(id))) return;
+    nudgeTimer = setTimeout(() => { if (!reduced()) body.classList.add('nudge'); }, NUDGE_AFTER);
+  }
+  window.addEventListener('focus', nudgeLater);
+  window.addEventListener('blur', () => { clearTimeout(nudgeTimer); body.classList.remove('nudge'); });
   function syncUi() {
     const v = viewOf(cur);
     posEl.textContent = (v[0] === 'extra' ? '付録' : viewLabel(v) + ' / ' + PAGES.length);
@@ -850,22 +852,15 @@
   // thumbnails (the two-page spreads + the single covers + the appendix)
   // =====================================================================
   let thumbsDirty = true;
-  // The pull tab: a rip runs down the perforation, then the seal falls away from both pages (manual.css; reduced
-  // motion: it is gone at once). The pages are readable from then on, here and in the thumbnails.
-  let tearing = false;
+  // The pull tab: a rip runs down the perforation, then the seal falls away from both pages (manual.css .tearing;
+  // reduced motion: it is gone at once). The pages are readable from then on, here and in the thumbnails.
   function tearSeal() {
-    if (tearing || !secretOpen || seal.torn) return;
-    tearing = true;
+    if (!secretOpen || seal.torn) return;
     seal.torn = true; GS.savePrefs(SEAL_KEY, seal);
-    const pages = SECRET.map(id => document.getElementById(id)).filter(Boolean);
-    const done = () => {
-      pages.forEach(p => p.classList.remove('tearing'));
-      setSealed(false);
-      tearing = false; thumbsDirty = true;
-      setTimeout(drawLeaders, 0);
-    };
+    nudgeLater();
+    const done = () => { body.classList.remove('tearing'); applySeal(); thumbsDirty = true; };
     if (reduced()) { done(); return; }
-    pages.forEach(p => p.classList.add('tearing'));
+    body.classList.add('tearing');
     setTimeout(done, 1200);
   }
   function buildThumbs() {
